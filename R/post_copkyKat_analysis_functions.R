@@ -196,7 +196,7 @@ add_abspos_ends<-function(df_by_chr,chr_size)
 # prefix: filename prefix
 # save: if FALSE, the
 
-annotate_genomic_ranges<-function(df,var,cutoff,plot=FALSE,bw=200,out='./',prefix='',save=TRUE,chr_size)
+annotate_genomic_ranges<-function(df,var,cutoff,plot=FALSE,bw=200,out='./',prefix='',save=FALSE,chr_size)
 {
 
 # Add range and width as additional columns
@@ -230,6 +230,14 @@ return(gr_anno)
 }
 
 
+### Functions related to subsetting copyKat genomic intervals based on a cutoff ###
+
+## Function to generate count of cells with CNV values > cutoff ##
+
+# rec_mat: matrix with CNV values for all cells (columns) for all genomic intervals (rows) generated for a given run
+# cutoff: gain/loss cutoff for subsetting
+# var: specify whether the variation is 'gain' or 'loss'
+
 cell_count_by_cutoff<-function(rec_mat,cutoff,var)
 {
 
@@ -259,7 +267,11 @@ for(i in 1:nrow(rec_mat))
 return(cell_count)
 }
 
-# Function to apply cell% cutoff
+
+## Function to apply a cell count filter for subsets of genomic intervals ##
+
+# cell_count: cell count for cells that passed user defined threshold/cutoff
+# tot_cells: total cell count in the given matrix
 
 subset_indx<-function(cell_count,tot_cells)
 {
@@ -275,9 +287,18 @@ i75<-which(cell_count>=(0.75*tot_cells))
 
 #return(idx_list)
 return(i75)
+
 }
 
-subset_by_cutoff<-function(rec_mat2,usr_cutoff,var,out,sname)
+## Function to generate count of cells with CNV values > cutoff ##
+
+# rec_mat2: matrix with CNV values for all cells (columns) for all genomic intervals (rows) generated for a given run
+# usr_cutoff: gain/loss cutoff for subsetting
+# var: specify whether the variation is 'gain' or 'loss'
+# out: output directory path
+# fname: filename prefix
+
+subset_by_cutoff<-function(rec_mat2,usr_cutoff,var,out,fname)
 {
 rec_mat<-rec_mat2[,-(1:4)]
 cols<-ncol(rec_mat)
@@ -296,7 +317,7 @@ saveRDS(object = gain,paste0(out,sname,'_cutoff',usr_cutoff,'_gain.rds'))
  l_idx<-subset_indx(cell_count=cc,tot_cells=cols)
  loss<-lapply(1:length(l_idx),function(x){return(rec_mat2[l_idx[[x]],1:4])})
  #names(loss)<-c('75l','70l','60l','50l','25l')
- saveRDS(object = loss,paste0(out,sname,'_cutoff',usr_cutoff,'_loss.rds'))
+ saveRDS(object = loss,paste0(out,fname,'_cutoff',usr_cutoff,'_loss.rds'))
 }else
  {
   cat('you need to specify variation as either gain or loss \n')
