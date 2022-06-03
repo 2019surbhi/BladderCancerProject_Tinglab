@@ -300,14 +300,14 @@ return(i75)
 
 subset_by_cutoff<-function(rec_mat2,usr_cutoff,var,out,fname)
 {
-rec_mat<-rec_mat2[,-(1:4)]
+rec_mat<-rec_mat2[,-(1:5)]
 cols<-ncol(rec_mat)
 
  if(var=='gain')
 {
 cc<-cell_count_by_cutoff(rec_mat,cutoff=usr_cutoff,var)
 g_idx<-subset_indx(cell_count=cc,tot_cells=cols)
-gain<-lapply(1:length(g_idx),function(x){return(rec_mat2[g_idx[[x]],1:4])})
+gain<-lapply(1:length(g_idx),function(x){return(rec_mat2[g_idx[[x]],1:5])})
 #names(gain)<-c('75g','70g','60g','50g','25g')
 
 saveRDS(object = gain,paste0(out,sname,'_cutoff',usr_cutoff,'_gain.rds'))
@@ -315,7 +315,7 @@ saveRDS(object = gain,paste0(out,sname,'_cutoff',usr_cutoff,'_gain.rds'))
 {
  cc<-cell_count_by_cutoff(rec_mat,cutoff=usr_cutoff,var)
  l_idx<-subset_indx(cell_count=cc,tot_cells=cols)
- loss<-lapply(1:length(l_idx),function(x){return(rec_mat2[l_idx[[x]],1:4])})
+ loss<-lapply(1:length(l_idx),function(x){return(rec_mat2[l_idx[[x]],1:5])})
  #names(loss)<-c('75l','70l','60l','50l','25l')
  saveRDS(object = loss,paste0(out,fname,'_cutoff',usr_cutoff,'_loss.rds'))
 }else
