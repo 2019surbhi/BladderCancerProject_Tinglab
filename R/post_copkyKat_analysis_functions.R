@@ -8,6 +8,8 @@ library('TxDb.Hsapiens.UCSC.hg38.knownGene') # hg38 gene annotation ref
 library('AnnotationDbi')
 library('org.Hs.eg.db') # to get gene symbol for Entrez gene.id
 library('plyrange') # to apply dplyr functions on GRange obj
+library(dplyr)
+library(gtools)
 
 ## Function to plot genomic coordinate widths ##
 
@@ -97,13 +99,17 @@ add_ends<-function(df_by_chr,chr_size)
     {
   
     # Generally chromosome column is named as 'chr' but copyKat output uses 'chrom'; GRange uses 'seqname' so need to ensure this function is compatible for all inputs
-    chr_col<-match(c('chr','chrom','seqname'),colnames(df_by_chr))
-    chr_col<-chr_col[complete.cases(chr_col)]
+    start_col<-match(c('chr_pos','chrompos'),colnames(df_by_chr))
+    start_col<-start_col[complete.cases(start_col)]
+    
     
     # Add chr end (start of next interval-1)
     start<-df_by_chr[,chr_col]
     end<-start[2:length(start)]
     end<-end-1
+    
+    chr_col<-match(c('chr','chrom','seqname'),colnames(df_by_chr))
+    chr_col<-chr_col[complete.cases(chr_col)]
     
     # Add chr last segment based on chr size
     i<-match(unique(df_by_chr[,chr_col]),chr_size$chr)
