@@ -7,9 +7,10 @@
 library('TxDb.Hsapiens.UCSC.hg38.knownGene') # hg38 gene annotation ref
 library('AnnotationDbi')
 library('org.Hs.eg.db') # to get gene symbol for Entrez gene.id
-library('plyrange') # to apply dplyr functions on GRange obj
+library('plyranges') # to apply dplyr functions on GRange obj
 library(dplyr)
 library(gtools)
+library(openxlsx)
 
 ## Function to plot genomic coordinate widths ##
 
@@ -50,11 +51,11 @@ if(save==FALSE)
 # gr: genomic range obj created using gain/loss dataframe
 # ref: Annotation reference database to use [Default: TxDb.Hsapiens.UCSC.hg38.knownGene]
 
-add_gene_anno<-function(gr,ref='TxDb.Hsapiens.UCSC.hg38.knownGene')
+add_gene_anno<-function(gr)
 {
 
 # Create selected ref database
-gr_db<-genes(keepStandardChromosomes(ref))
+gr_db<-genes(keepStandardChromosomes(TxDb.Hsapiens.UCSC.hg38.knownGene))
 
 #gr_db_ts<- transcripts(keepStandardChromosomes(TxDb.Hsapiens.UCSC.hg38.knownGene))
 
@@ -76,7 +77,7 @@ int<-int[unique(int$gene_id),]
 gene_id<-int$gene_id
 #ts_id<-as.character(int_ts$tx_id)
 
-anno<-AnnotationDbi::select(org.Hs.eg.db, keys=gene_id, columns=c('SYMBOL',"GENENAME","GENETYPE"), keytype='ENTREZID')
+anno<-AnnotationDbi::select(org.Hs.eg.db, keys=gene_id, columns=c('SYMBOL',"GENENAME"), keytype='ENTREZID')
 
 # keytypes(org.Hs.eg.db)
 # anno_ts<-AnnotationDbi::select(org.Hs.eg.db, keys=ts_id, columns='SYMBOL', keytype='ENSEMBLTRANS')
@@ -217,7 +218,7 @@ if(plot==TRUE)
 }
 
 # Create GRange obj
-rownames(df2)<-NULL
+rownames(df)<-NULL
 
 
 # Rename chr23
@@ -330,4 +331,103 @@ saveRDS(object = gain,paste0(out,sname,'_cutoff',usr_cutoff,'_gain.rds'))
  }
 }
 
+
+intersect_by_abs<-function(df,ref_tab,out,var,cell_cutoff,cnv_cutoff,save=FALSE)
+{
+df_anno<-data.frame()
+not_found<-data.frame()
+
+for(i in 1:nrow(df))
+{
+
+# Get genes within i(th) interval
+sub<-ref_tab[dplyr::between(ref_tab$gene_abspos,df$abspos_start[i],df$abspos_end[i]),]
+
+if(nrow(sub)>0)
+{
+#repeat gi rows
+n<-nrow(sub)
+if(n>1)
+{
+gi<-df[rep(i, times=n), ]
+}else{
+  gi<-df[i,]
+}
+temp<-cbind(gi,sub)
+df_anno<-rbind(df_anno,temp)
+}else{
+ gi<-df[i,]
+ not_found<-rbind(not_found,gi)
+}
+
+}
+
+gi_count<-df_anno %>% group_by(chr,start,end) %>% tally
+gi_count<-gi_count %>% arrange(.,chr,start,end)
+
+nf_count<-not_found %>% group_by(chr,start,end) %>% tally()
+nf_count$n<-0
+nf_count<-nf_count %>% arrange(.,chr,start,end)
+
+# Merge the tables
+count<-rbind(gi_count,nf_count)
+count<-count %>% arrange(.,chr,start,end)
+
+# Create concise anno table
+concise_anno<-get_concise_table(df=df,df_anno=df_anno,
+                                ref_tab,out,var,cell_cutoff,cnv_cutoff)
+
+
+concise_anno<- concise_anno %>% arrange(.,chr,start,end)
+concise_anno2<-merge(concise_anno,count,by.x=c('chr','start','end'),by.y=c('chr','start','end'))
+
+concise_anno2<-concise_anno2 %>% arrange(chr,start,end)
+
+if(save==TRUE)
+{
+
+write.xlsx(concise_anno2,paste0(out,'concise_annotated_genomic_ranges_',var,'_',cell_cutoff,'_p_cutoff',cnv_cutoff,'_filtered_by_copyKat_gene_tab_by_abspos.xlsx'))
+
+}else{
+  return(concise_anno2)
+}
+
+}
+
+
+## Function to create concise annotated table ##
+
+# df: dataframe containing genomic interval info (chr, start, end,abspos_start, abspos_end)
+# df_anno: dataframe containing annotated genomic interval info (chr, start, end, abspos_start, abspos_end,gene_abspos,gene_chr,gene_start, gene_end, ensembl_gene_id, hgnc_symbol,band)
+# ref_tab: copyKat gene tab (create non-redundant union of genes if > 1 sample by merging individual tables)
+# var: specify 'gain' or 'loss'
+# cell_cutoff: specify the cell cutoff used for create df
+# cnv_cutoff: specify copyKat CNV value cutoff used for creating df
+
+get_concise_table<-function(df,df_anno,ref_tab,out,var,cell_cutoff,cnv_cutoff)
+{
+
+gene_id<-list()
+gene<-list()
+
+for(i in 1:nrow(df))
+{
+j1<-which(df_anno$abspos_start %in%df$abspos_start[i])
+if(length(j1)>0)
+{
+gene_id[[i]]<-df_anno$ensembl_gene_id[j1]
+gene[[i]]<-df_anno$hgnc_symbol[j1]
+}else{
+  gene_id[[i]]<-'NA'
+  gene[[i]]<-'NA'
+}
+
+}
+
+anno_concise<-df
+anno_concise$gene<-gene
+anno_concise$gene_id<-gene_id
+
+return(anno_concise)
+}
 
