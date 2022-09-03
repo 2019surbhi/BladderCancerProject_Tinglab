@@ -13,10 +13,12 @@ prefix<-'primary_recurrent_k10'
 
 # DotPlots per sample
 
-dotplot_per_sample<-function(obj,genes,out,fname,w=20,h=12,meta)
+dotplot_per_metadata<-function(obj,genes,out,fname,w=20,h=12,split='orig.ident',morder='none',meta)
 {
-  obj_lst<-SplitObject(obj,split.by = 'orig.ident')
+  obj_lst<-SplitObject(obj,split.by = split)
   sname<-names(obj_lst)
+  
+  sname<-gsub(' ','_',sname)
   
   fname2<-paste(fname,sname,sep='_')
   plist<-list()
@@ -24,9 +26,17 @@ dotplot_per_sample<-function(obj,genes,out,fname,w=20,h=12,meta)
   {
     DefaultAssay(obj_lst[[i]])<-'RNACleaned'
     obj_lst[[i]]<-add_cell_count_to_cell_names(obj_lst[[i]],meta = meta)
+    
     Idents(obj_lst[[i]])<-meta
     
     #obj_lst[[i]]@active.ident<-factor(x=obj_lst[[i]]@active.ident, levels=new_levels)
+    
+    # if(morder!='none')
+    # {
+    #   factor(Idents(obj_lst[[i]]), levels= morder)
+    #   Idents(obj_lst[[i]]) <- factor(Idents(obj_lst[[i]]), levels= morder)
+    #   
+    # }
     
     d<-DotPlot(obj_lst[[i]],features=genes) + 
       theme(axis.text.x = element_text(angle = 90),
@@ -34,7 +44,7 @@ dotplot_per_sample<-function(obj,genes,out,fname,w=20,h=12,meta)
       ggtitle(label=fname2[i])
     
     plist[[i]]<-d
-    ggsave(filename = paste0(out,fname2[i],'_Dotplot.png'),width =w,height=h,units="in",d)
+    #ggsave(filename = paste0(out,fname2[i],'_Dotplot.png'),width =w,height=h,units="in",d)
     
   }
   
@@ -43,6 +53,8 @@ dotplot_per_sample<-function(obj,genes,out,fname,w=20,h=12,meta)
   ggsave(paste0(out,fname,'_Dotplots.pdf'),width=w,height = h,units="in",m)
   
 }
+
+
 
 # Function to add cell count to cell_names (in future modify this for any meta col)
 
@@ -164,6 +176,12 @@ Idents(pr_obj)<-'recurrent'
 prefix_uro<-paste0(prefix,'_uro')
 
 
+## Order sample ## 
+
+sorder<-'BL_191065,BL_193287,BL_208667T,BL_208667T_A,BL_191065T_A,BL_201065T_B,BL_203287T_R,BL_208667T_B'
+
+sorder<-strsplit(sorder,split = ',') %>% unlist()
+
 ### 5. Dotplots ###
 
 ## (A) Checkpoint inhibitors ##
@@ -176,9 +194,15 @@ di<-DotPlot(imm,features=genes1) + theme(axis.text.x = element_text(angle = 90),
 ggsave(paste0(out_cpi,'immune/',
               prefix_imm,'_chkpoint_inhibitor_Dotplot.png'), width = 20,height=12,units="in",di)
 
-dotplot_per_sample(obj=imm,genes=genes1,out=paste0(out_cpi,'immune/'),
+# By sample
+dotplot_per_metadata(obj=imm,genes=genes1,out=paste0(out_cpi,'immune/'),
                    fname=paste0(prefix_imm,'_chkpoint_inhibitors'),meta = 'cell_names')
   
+
+# By cluster
+dotplot_per_metadata(obj=imm,genes=genes1,out=paste0(out_cpi,'immune/'),
+                     fname=paste0(prefix_imm,'_chkpoint_inhibitors_by_cluster'),
+                     split = 'cell_names',meta = 'orig.ident',morder = sorder)
 
 # Stromal
 
@@ -187,16 +211,26 @@ df<-DotPlot(fibro,features=genes1) + theme(axis.text.x = element_text(angle = 90
 ggsave(paste0(out_cpi,'stromal/',
               prefix_fibro,'_chkpoint_inhibitor_Dotplot.png'), width = 20,height=12,units="in",df)
 
-dotplot_per_sample(obj=fibro,genes=genes1,out=paste0(out_cpi,'stromal/'),
-                   fname=paste0(prefix_fibro,'_chkpoint_inhibitors'),meta = 'RNACleaned_snn_res.0.5')
+#by sample
+dotplot_per_metadata(obj=fibro,genes=genes1,out=paste0(out_cpi,'stromal/'),
+                   fname=paste0(prefix_fibro,'_chkpoint_inhibitors'),
+                   meta = 'RNACleaned_snn_res.0.5')
+
 
 de<-DotPlot(endo,features=genes1) + theme(axis.text.x = element_text(angle = 90),
                                           axis.title = element_blank())
 ggsave(paste0(out_cpi,'stromal/',
               prefix_endo,'_chkpoint_inhibitor_Dotplot.png'), width = 20,height=12,units="in",de)
 
-dotplot_per_sample(obj=endo,genes=genes1,out=paste0(out_cpi,'stromal/'),
-                   fname=paste0(prefix_endo,'_chkpoint_inhibitors'),meta = 'RNACleaned_snn_res.0.5')
+
+# by  cluster
+dotplot_per_metadata(obj=fibro,genes=genes1,out=paste0(out_cpi,'stromal/'),
+                   fname=paste0(prefix_fibro,'_chkpoint_inhibitors_by_cluster'),
+                   split='RNACleaned_snn_res.0.5',meta = 'orig.ident',order = sorder)
+
+
+dotplot_per_metadata(obj=endo,genes=genes1,out=paste0(out_cpi,'stromal/'),
+                   fname=paste0(prefix_endo,'_chkpoint_inhibitors_by_cluster'),split='RNACleaned_snn_res.0.5',meta = 'orig.ident')
 
 # Uro
 du<-DotPlot(pr_obj,features=genes1) + theme(axis.text.x = element_text(angle = 90),
@@ -204,8 +238,15 @@ du<-DotPlot(pr_obj,features=genes1) + theme(axis.text.x = element_text(angle = 9
 ggsave(paste0(out_cpi,'uro/',prefix_uro,
               '_chkpoint_inhibitor_Dotplot.png'),width = 20,height=12,units="in",du)
 
-dotplot_per_sample(obj=pr_obj,genes=genes1,out=paste0(out_cpi,'uro/'),
-                   fname=paste0(prefix_uro,'_chkpoint_inhibitors'),meta = 'recurrent')
+# by sample
+dotplot_per_metadata(obj=pr_obj,genes=genes1,out=paste0(out_cpi,'uro/'),
+                   fname=paste0(prefix_uro,'_chkpoint_inhibitors'),
+                 split = 'orig.ident',meta='recurrent')
+
+# by cluster
+dotplot_per_metadata(obj=pr_obj,genes=genes1,out=paste0(out_cpi,'uro/'),
+                   fname=paste0(prefix_uro,'_chkpoint_inhibitors_by_cluster'),
+                 split = 'recurrent',meta='orig.ident')
 
 
 ## (B) Cytokines/Chemokines ##
@@ -218,8 +259,13 @@ di<-DotPlot(imm,features=genes2) + theme(axis.text.x = element_text(angle = 90),
 ggsave(paste0(out_ck,'immune/',prefix_imm,
               '_cytokines_Dotplot.png'),width = 20,height=12,units="in",di)
 
-dotplot_per_sample(obj=imm,genes=genes2,out=paste0(out_ck,'immune/'),
+dotplot_per_metadata(obj=imm,genes=genes2,out=paste0(out_ck,'immune/'),
                    fname=paste0(prefix_imm,'_cytokines'),meta = 'cell_names')
+
+# by cluster
+dotplot_per_metadata(obj=imm,genes=genes2,out=paste0(out_ck,'immune/'),
+                   fname=paste0(prefix_imm,'_cytokines_by_cluster'),
+                   split='cell_names', meta = 'orig.ident')
 
 # stromal
 df<-DotPlot(fibro,features=genes2) + theme(axis.text.x = element_text(angle = 90),
@@ -228,15 +274,27 @@ ggsave(paste0(out_ck,'stromal/',
               prefix_fibro,'_cytokines_Dotplot.png'), width = 20,height=12,units="in",df)
 
 dotplot_per_sample(obj=fibro,genes=genes2,out=paste0(out_ck,'stromal/'),
-                   fname=paste0(prefix_fibro,'_cytokines'),meta = 'RNACleaned_snn_res.0.5')
+                   fname=paste0(prefix_fibro,'_cytokines'),meta='RNACleaned_snn_res.0.5')
+
+
+dotplot_per_metadata(obj=fibro,genes=genes2,out=paste0(out_ck,'stromal/'),
+                   fname=paste0(prefix_fibro,'_cytokines_by_cluster'),
+                   split = 'RNACleaned_snn_res.0.5',meta='orig.ident')
+
+
 
 de<-DotPlot(endo,features=genes2) + theme(axis.text.x = element_text(angle = 90),
                                           axis.title = element_blank())
 ggsave(paste0(out_ck,'stromal/',
               prefix_endo,'_cytokines_Dotplot.png'), width = 20,height=12,units="in",de)
 
-dotplot_per_sample(obj=endo,genes=genes2,out=paste0(out_ck,'stromal/'),
+dotplot_per_metadata(obj=endo,genes=genes2,out=paste0(out_ck,'stromal/'),
                    fname=paste0(prefix_endo,'_cytokines'),meta = 'RNACleaned_snn_res.0.5')
+
+
+dotplot_per_metadata(obj=endo,genes=genes2,out=paste0(out_ck,'stromal/'),
+                   fname=paste0(prefix_endo,'_cytokines_by_cluster'),
+                   split = 'RNACleaned_snn_res.0.5',meta='orig.ident')
 
 
 # uro
@@ -245,8 +303,12 @@ du<-DotPlot(pr_obj,features=genes2) + theme(axis.text.x = element_text(angle = 9
 ggsave(paste0(out_ck,'uro/',prefix_uro,
               '_cytokines_Dotplot.png'),width = 20,height=12,units="in",du)
 
-dotplot_per_sample(obj=pr_obj,genes=genes2,out=paste0(out_ck,'uro/'),
+dotplot_per_metadata(obj=pr_obj,genes=genes2,out=paste0(out_ck,'uro/'),
                    fname=paste0(prefix_uro,'_cytokines'),meta = 'recurrent')
+
+dotplot_per_metadata(obj=pr_obj,genes=genes2,out=paste0(out_ck,'uro/'),
+                   fname=paste0(prefix_uro,'_cytokines_by_cluster'),
+                   split = 'recurrent',meta='orig.ident')
 
 ## (C) Cellphonedb genes ## - incomplete
 
