@@ -120,149 +120,148 @@ get_concise_table<-function(df,df_anno,out,var)
   return(anno_concise)
 }
 
-get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,anno_df_old='',fprefix,out)
+get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,anno_df_old='',rclade,nrclade,fprefix,out)
 {
-    df_lst<-lapply(1:length(clade),function(x){readRDS(paste0(thresh_dir,fprefix,'_',clade[x],'_cutoff',cutoff,'_',var,'.rds'))})
-
-
-    if(var=='gain')
-    {p_name<-paste0(p,'g')}else{
-        p_name<-paste0(p,'l')
-    }
+  df_lst<-lapply(1:length(clade),function(x){readRDS(paste0(thresh_dir,fprefix,'_',clade[x],'_cutoff',cutoff,'_',var,'.rds'))})
+  
+  
+  if(var=='gain')
+  {p_name<-paste0(p,'g')}else{
+    p_name<-paste0(p,'l')
+  }
+  
+  p_idx<-grep(p_name,names(df_lst[[1]]))
+  
+  df_lst2<-lapply(df_lst,'[[',p_idx)
+  
+  names(df_lst2)<-clade
+  
+  write.xlsx(df_lst2,paste0(out,fprefix,'_per_clade_genomic_intervals_',var,'_',p,'p_cutoff',cutoff,'.xlsx'))
+  
+  # Filter clades that have 0 rows
+  
+  rem<-which((unlist(lapply(df_lst2,nrow)))==0)
+  df_lst2_fil<-df_lst2[-rem]
+  #df_l_lst80_fil<-df_l_lst80
+  
+  # Merge all tables
+  merged_all1<-lapply(df_lst2_fil,rbind)
+  
+  # remove row where start>end
+  merged_all<-lapply(1:length(merged_all1),function(x){rem<-which((merged_all1[[x]]$end-merged_all1[[x]]$start)<0);
+  if(length(rem)>0)
+  {merged_all1[[x]]<-merged_all1[[x]][-rem,]};
+  return(merged_all1[[x]])})
+  
+  names(merged_all)<-names(merged_all1)
+  
+  merged_tab<-full_join(x = merged_all[[1]],y = merged_all[[2]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
+  j<-2
+  for(i in 1:(length(merged_all)-2))
+  {
+    j<-j+1
+    merged_tab<-full_join(x=merged_tab,y = merged_all[[j]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
     
-    p_idx<-grep(p_name,names(df_lst[[1]]))
-
-    df_lst2<-lapply(df_lst,'[[',p_idx)
-
-    names(df_lst2)<-clade
-    
-    write.xlsx(df_lst2,paste0(out,fprefix,'_per_clade_genomic_intervals_',var,'_',p,'p_cutoff',cutoff,'.xlsx'))
-
-    # Filter clades that have 0 rows
-
-    rem<-which((unlist(lapply(df_lst2,nrow)))==0)
-    df_lst2_fil<-df_lst2[-rem]
-    #df_l_lst80_fil<-df_l_lst80
-
-    # Merge all tables
-    merged_all1<-lapply(df_lst2_fil,rbind)
-
-    # remove row where start>end
-    merged_all<-lapply(1:length(merged_all1),function(x){rem<-which((merged_all1[[x]]$end-merged_all1[[x]]$start)<0);
-    if(length(rem)>0)
-    {merged_all1[[x]]<-merged_all1[[x]][-rem,]};
-    return(merged_all1[[x]])})
-
-    names(merged_all)<-names(merged_all1)
-
-    merged_tab<-full_join(x = merged_all[[1]],y = merged_all[[2]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
-    j<-2
-    for(i in 1:(length(merged_all)-2))
-    {
-      j<-j+1
-      merged_tab<-full_join(x=merged_tab,y = merged_all[[j]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
-      
-    }
-
-    ## Annotate ##
-
-    # Remove rows where start>end
-
-    # rem<-which((merged_tab$end-merged_tab$start)<0)
-    # merged_tab<-merged_tab[-rem,]
-
-    # annotate main table
-    anno_df<-annotate_genomic_ranges(df = merged_tab,var='loss',
-                                     cutoff=cutoff_l,plot=FALSE,
-                                     bw=200,out=out,
-                                     prefix=paste0(fprefix,'_loss_cutoff',
-                                                   cutoff_l),
-                                     save=FALSE,chr_size=chr_size)
-
-
-    # annotate per clade tables
-
-    anno_df_lst<-list()
-    for(i in 1:length(merged_all))
-    {
+  }
+  
+  ## Annotate ##
+  
+  # Remove rows where start>end
+  
+  # rem<-which((merged_tab$end-merged_tab$start)<0)
+  # merged_tab<-merged_tab[-rem,]
+  
+  # annotate main table
+  anno_df<-annotate_genomic_ranges(df = merged_tab,var='loss',
+                                   cutoff=cutoff_l,plot=FALSE,
+                                   bw=200,out=out,
+                                   prefix=paste0(fprefix,'_loss_cutoff',
+                                                 cutoff_l),
+                                   save=FALSE,chr_size=chr_size)
+  
+  
+  # annotate per clade tables
+  
+  anno_df_lst<-list()
+  for(i in 1:length(merged_all))
+  {
     anno_df_lst[[i]]<-annotate_genomic_ranges(df = merged_all[[i]],var='loss',
-                                     cutoff=cutoff_l,plot=FALSE,
-                                     bw=200,out=out,
-                                     prefix=paste0(fprefix,'_loss_cutoff',
-                                                   cutoff_l),
-                                     save=FALSE,chr_size=chr_size)
-
-    }
-
-    names(anno_df_lst)<-names(merged_all)
-
-
-    write.xlsx(anno_df_lst,paste0(out,fprefix,'_per_clade_annotated_',var,'_',p,'p_cutoff',cutoff,'.xlsx'))
-
-
-    clades<-list()
-    clades<-lapply(1:length(anno_df_lst), function(x){cd<-rep(x=0,nrow(anno_df));
-    return(cd)})
-
-    for(i in 1:length(anno_df_lst))
-    {
-      cd<-vector()
-      cd<-clades[[i]]
-      comm<-which(anno_df$SYMBOL %in% anno_df_lst[[i]]$SYMBOL)
-      cd[comm]<-1
-      clades[[i]]<-cd
-    }
-
-    names(clades)<-names(anno_df_lst)
-
-    clade_df<-clades[[1]] %>% as.data.frame()
-    for(i in 2:(length(clades)))
-    {
-      clade_df<-cbind(clade_df,clades[[i]])
-    }
-
-    colnames(clade_df)<-names(anno_df_lst)
-    anno_df2<-cbind(anno_df,clade_df)
-
-
-    ## Add R and NR count and % ##
-
-    rclade<-paste0('clade',c(1,4,5,6,10))
-    rcol<-match(rclade,colnames(anno_df2))
-    R<-rowSums(anno_df2[,rcol])
-
-    nrclade<-paste0('clade',c(3,7,8,9))
-    nrcol<-match(nrclade,colnames(anno_df2))
-    NR<-rowSums(anno_df2[,nrcol])
-
-    pct.R<-(R/5) *100
-    pct.NR<-(NR/4)*100
-
-    count_df<-cbind(R,NR,pct.R,pct.NR) %>% as.data.frame()
-
-    #count_df$pct.R<-paste0(count_df$pct.R,'%')
-    #count_df$pct.NR<-paste0(count_df$pct.NR,'%')
-
-    anno_df2<-cbind(anno_df2,count_df)
-
-
-    ## Add overlap column - overlap with old table ##
+                                              cutoff=cutoff_l,plot=FALSE,
+                                              bw=200,out=out,
+                                              prefix=paste0(fprefix,'_loss_cutoff',
+                                                            cutoff_l),
+                                              save=FALSE,chr_size=chr_size)
     
-    
-    if(anno_df_old!='')
-    {
+  }
+  
+  names(anno_df_lst)<-names(merged_all)
+  
+  
+  write.xlsx(anno_df_lst,paste0(out,fprefix,'_per_clade_annotated_',var,'_',p,'p_cutoff',cutoff,'.xlsx'))
+  
+  
+  clades<-list()
+  clades<-lapply(1:length(anno_df_lst), function(x){cd<-rep(x=0,nrow(anno_df));
+  return(cd)})
+  
+  for(i in 1:length(anno_df_lst))
+  {
+    cd<-vector()
+    cd<-clades[[i]]
+    comm<-which(anno_df$SYMBOL %in% anno_df_lst[[i]]$SYMBOL)
+    cd[comm]<-1
+    clades[[i]]<-cd
+  }
+  
+  names(clades)<-names(anno_df_lst)
+  
+  clade_df<-clades[[1]] %>% as.data.frame()
+  for(i in 2:(length(clades)))
+  {
+    clade_df<-cbind(clade_df,clades[[i]])
+  }
+  
+  colnames(clade_df)<-names(anno_df_lst)
+  anno_df2<-cbind(anno_df,clade_df)
+  
+  
+  ## Add R and NR count and % ##
+  
+  rcol<-match(rclade,colnames(anno_df2))
+  R<-rowSums(anno_df2[,rcol])
+  
+  nrcol<-match(nrclade,colnames(anno_df2))
+  NR<-rowSums(anno_df2[,nrcol])
+  
+  pct.R<-(R/length(rclade)) *100
+  pct.NR<-(NR/length(rclade))*100
+  
+  count_df<-cbind(R,NR,pct.R,pct.NR) %>% as.data.frame()
+  
+  #count_df$pct.R<-paste0(count_df$pct.R,'%')
+  #count_df$pct.NR<-paste0(count_df$pct.NR,'%')
+  
+  anno_df2<-cbind(anno_df2,count_df)
+  
+  
+  ## Add overlap column - overlap with old table ##
+  
+  
+  if(anno_df_old!='')
+  {
     # Intersect to get common genes #
     comm<-intersect(anno_df_old$SYMBOL,anno_df2$SYMBOL)
-
+    
     anno_df2$overlap_w_old<-rep(0,nrow(anno_df2))
     idx<-which(anno_df2$SYMBOL %in% comm)
     anno_df2$overlap_w_old[idx]<-1
-    }
-
-    write.xlsx(anno_df2,paste0(out,fprefix,'_per_clade_merged_',var,'_',p,'p_cutoff',cutoff,'_final.xlsx'))
-
-
+  }
+  
+  write.xlsx(anno_df2,paste0(out,fprefix,'_per_clade_merged_',var,'_',p,'p_cutoff',cutoff,'_final.xlsx'))
+  
+  
 }
+
 
 
 
@@ -278,6 +277,9 @@ thresh_dir<-'//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat
 n8_fprefix<-'primary_recurrent'
 clade<-paste0('clade',1:10)
 
+rclade<-paste0('clade',c(1,4,5,6,10))
+nrclade<-paste0('clade',c(3,7,8,9))
+
 path<-'/home/sonas/copykat/genes/gain_loss/primary_recurrent_r/annotated_table/genes_for_oncoplots.xlsx'
 
 
@@ -288,10 +290,11 @@ cutoff_l<-(-0.03)
 pl<-70
 var<-'loss'
 
+
 anno_df_rec<-read.xlsx(xlsxFile = path,sheet = var)
 
 
-get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_l,var='loss',p=pl,chr_sizes=chr_sizes,anno_df_old=anno_df_rec,fprefix=n8_fprefix,out=out)
+get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_l,var='loss',p=pl,chr_sizes=chr_sizes,anno_df_old=anno_df_rec,rclade=rclade,nrclade=nrclade,fprefix=n8_fprefix,out=out)
 
 
 ## GAINS ##
@@ -313,8 +316,13 @@ out<-'/home/sonas/copykat/genes/gain_loss/sample17_per_clade/annotated_table/'
 
 thresh_dir<-'//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/samples17_per_clade/thresholds/'
 
+path<-'/home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/samples17/annotated_table/'
+
 n17_fprefix<-'samples17'
 clade<-paste0('clade',1:17)
+
+rclade<-paste0('clade',c(1,4,6,8,9,10,11,12,13,14,16,17))
+nrclade<-paste0('clade',c(2,5,7,15))
 
 ## LOSS ##
 #cutoff_l<-(-0.035)
@@ -322,7 +330,11 @@ cutoff_l<-(-0.030)
 pl<-70
 var<-'loss'
 
-get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_l,var='loss',p=pl,chr_sizes=chr_sizes,fprefix=n17_fprefix,out=out)
+
+tab_l<-'samples17_annotated_genomic_ranges_loss_70p_cutoff-0.03.xlsx'
+anno_df_rec<-read.xlsx(xlsxFile = paste0(path,tab_l))
+
+get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_l,var='loss',p=pl,chr_sizes=chr_sizes,rclade=rclade,nrclade=nrclade,anno_df_old=anno_df_rec,fprefix=n17_fprefix,out=out)
 
 
 ## GAINS ##
@@ -332,7 +344,20 @@ pg<-70
 var<-'gain'
 
 
-get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_g,var='gain',p=pg,chr_sizes=chr_sizes,fprefix=n17_fprefix,out=out)
+gtab_g<-'samples17_annotated_genomic_ranges_gain_70p_cutoff0.03.xlsx'
+anno_df_rec<-read.xlsx(xlsxFile = paste0(path,tab_g))
+
+
+get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_g,var='gain',p=pg,chr_sizes=chr_sizes,rclade=rclade,nrclade=nrclade,anno_df_old=anno_df_rec,fprefix=n17_fprefix,out=out)
+
+
+
+
+
+
+
+
+
 
 
 
