@@ -9,6 +9,7 @@ library('AnnotationDbi')
 library('org.Hs.eg.db') # to get gene symbol for Entrez gene.id
 library('plyrange') # to apply dplyr functions on GRange obj
 
+source('gain_loss_annotations_per_clade_functions.R')
 
 ### PRIMARY-RECURRENT pairs of sampels (n=8)
 
