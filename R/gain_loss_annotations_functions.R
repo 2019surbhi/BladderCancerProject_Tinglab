@@ -4,13 +4,19 @@
 
 # Load Dependencies #
 
-library('TxDb.Hsapiens.UCSC.hg38.knownGene') # hg38 gene annotation ref
-library('AnnotationDbi')
-library('org.Hs.eg.db') # to get gene symbol for Entrez gene.id
-library('plyranges') # to apply dplyr functions on GRange obj
-library(dplyr)
+library(GenomicRanges)
+library(plyranges)
+#library(biomaRt)
+library(TxDb.Hsapiens.UCSC.hg38.knownGene)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
 library(gtools)
+
 library(openxlsx)
+library(readxl)
+library(data.table)
+library(readr)
+library(ComplexHeatmap)
 
 ## Function to plot genomic coordinate widths ##
 
@@ -69,8 +75,11 @@ int<-sort(int)
 
 #int_ts<-join_overlap_intersect(x=gr_db_ts,y=gr)
 #int_ts<-sort(int_ts)
-
-# Some genes span >1 interval and these duplicate entries need to be removed
+  
+ #Save a copy of intersect table
+ bc<-int %>% as.data.frame(row.names = NULL)
+ 
+# Some genes span >1 interval and these duplicate entries need to be removed to avoid errors in function
 int<-int[unique(int$gene_id),]
 
 # Get annotations for gene symbol
@@ -82,10 +91,9 @@ anno<-AnnotationDbi::select(org.Hs.eg.db, keys=gene_id, columns=c('SYMBOL',"GENE
 # keytypes(org.Hs.eg.db)
 # anno_ts<-AnnotationDbi::select(org.Hs.eg.db, keys=ts_id, columns='SYMBOL', keytype='ENSEMBLTRANS')
 
-
-int_df<-as.data.frame(int)
-int_anno_df<-merge(int_df,anno,by.x="gene_id",by.y='ENTREZID')
-
+# merge by GeneID to annotate table
+int_anno_df<-merge(bc,anno,by.x="gene_id",by.y='ENTREZID')
+ 
 return(int_anno_df)
 
 }
@@ -235,6 +243,163 @@ gr_anno<-add_gene_anno(gr)
 return(gr_anno)
 
 }
+
+## Function to process gain-loss outputs per clade ##
+
+# thresh_dir: path to dir where threholds are stored
+# clade: vector with clades eg. calde<-c(1,2,3,4,5,6,7,8,9,10)
+# cutoff: CNV cutoff (used to retrieve threshold table/list from threhold directory)
+# var: specify variation is 'gain' or 'loss'
+# p: cell percent cutoff (e.g. 70)
+# chr_sizes: table with chr size where chr annotation matches the chr annotation in other tables i.e. '1' vs 'chr1'
+# anno_df_old: old annotation table to check the overlap
+# rclade: vector specifying recurrent clades
+# nrclade: vector specifying non-recurrent clades
+# fprefix: file prefix to use for saved file
+# out: path to output dir
+
+get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,anno_df_old='',rclade,nrclade,fprefix,out)
+{
+  df_lst<-lapply(1:length(clade),function(x){readRDS(paste0(thresh_dir,fprefix,'_',clade[x],'_cutoff',cutoff,'_',var,'.rds'))})
+  
+  
+  if(var=='gain')
+  {p_name<-paste0(p,'g')}else{
+    p_name<-paste0(p,'l')
+  }
+  
+  p_idx<-grep(p_name,names(df_lst[[1]]))
+  
+  df_lst2<-lapply(df_lst,'[[',p_idx)
+  
+  names(df_lst2)<-clade
+  
+  write.xlsx(df_lst2,paste0(out,fprefix,'_per_clade_genomic_intervals_',var,'_',p,'p_cutoff',cutoff,'.xlsx'))
+  
+  # Filter clades that have 0 rows
+  
+  rem<-which((unlist(lapply(df_lst2,nrow)))==0)
+  df_lst2_fil<-df_lst2[-rem]
+  #df_l_lst80_fil<-df_l_lst80
+  
+  # Merge all tables
+  merged_all1<-lapply(df_lst2_fil,rbind)
+  
+  # remove row where start>end - why do we have these?
+  merged_all<-lapply(1:length(merged_all1),function(x){rem<-which((merged_all1[[x]]$end-merged_all1[[x]]$start)<0);
+  if(length(rem)>0)
+  {merged_all1[[x]]<-merged_all1[[x]][-rem,]};
+  return(merged_all1[[x]])})
+  
+  names(merged_all)<-names(merged_all1)
+  
+  merged_tab<-full_join(x = merged_all[[1]],y = merged_all[[2]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
+  j<-2
+  for(i in 1:(length(merged_all)-2))
+  {
+    j<-j+1
+    merged_tab<-full_join(x=merged_tab,y = merged_all[[j]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
+    
+  }
+  
+  ## Annotate ##
+  
+  # Remove rows where start>end
+  
+  # rem<-which((merged_tab$end-merged_tab$start)<0)
+  # merged_tab<-merged_tab[-rem,]
+  
+  # annotate main table
+  anno_df<-annotate_genomic_ranges(df = merged_tab,var='loss',
+                                   cutoff=cutoff_l,plot=FALSE,
+                                   out=out,
+                                   prefix=paste0(fprefix,'_loss_cutoff',cutoff_l),
+                                   save=FALSE,chr_size=chr_size)
+  
+  
+  # annotate per clade tables
+  
+  anno_df_lst<-list()
+  for(i in 1:length(merged_all))
+  {
+    anno_df_lst[[i]]<-annotate_genomic_ranges(df = merged_all[[i]],var=var,
+                                              cutoff=cutoff_l,plot=FALSE,out=out,
+                                              prefix=paste0(fprefix,'_',var,'_cutoff',
+                                                            cutoff_l),
+                                              save=FALSE,chr_size=chr_size)
+    
+  }
+  
+  names(anno_df_lst)<-names(merged_all)
+  
+  
+  write.xlsx(anno_df_lst,paste0(out,fprefix,'_per_clade_annotated_',var,'_',p,'p_cutoff',cutoff,'.xlsx'))
+  
+  
+  clades<-list()
+  clades<-lapply(1:length(anno_df_lst), function(x){cd<-rep(x=0,nrow(anno_df));
+  return(cd)})
+  
+  for(i in 1:length(anno_df_lst))
+  {
+    cd<-vector()
+    cd<-clades[[i]]
+    comm<-which(anno_df$SYMBOL %in% anno_df_lst[[i]]$SYMBOL)
+    cd[comm]<-1
+    clades[[i]]<-cd
+  }
+  
+  names(clades)<-names(anno_df_lst)
+  
+  clade_df<-clades[[1]] %>% as.data.frame()
+  for(i in 2:(length(clades)))
+  {
+    clade_df<-cbind(clade_df,clades[[i]])
+  }
+  
+  colnames(clade_df)<-names(anno_df_lst)
+  anno_df2<-cbind(anno_df,clade_df)
+  
+  # Removve ambiguous gene entry (has geneID but not gene name/symbol)
+  rem<-which(is.na(anno_df2$SYMBOL)==TRUE)
+  anno_df2<-anno_df2[-rem,]
+  
+  ## Add R and NR count and % ##
+  
+  rcol<-match(rclade,colnames(anno_df2))
+  R<-rowSums(anno_df2[,rcol])
+  
+  nrcol<-match(nrclade,colnames(anno_df2))
+  NR<-rowSums(anno_df2[,nrcol])
+  
+  pct.R<-(R/length(rclade)) *100
+  pct.NR<-(NR/length(rclade))*100
+  
+  count_df<-cbind(R,NR,pct.R,pct.NR) %>% as.data.frame()
+  
+  #count_df$pct.R<-paste0(count_df$pct.R,'%')
+  #count_df$pct.NR<-paste0(count_df$pct.NR,'%')
+  
+  anno_df2<-cbind(anno_df2,count_df)
+  
+  ## Add overlap column - overlap with old table ##
+  
+  
+  if(anno_df_old!='')
+  {
+    # Intersect to get common genes #
+    comm<-intersect(anno_df_old$SYMBOL,anno_df2$SYMBOL)
+    
+    anno_df2$overlap_w_old<-rep(0,nrow(anno_df2))
+    idx<-which(anno_df2$SYMBOL %in% comm)
+    anno_df2$overlap_w_old[idx]<-1
+  }
+  
+  write.xlsx(anno_df2,paste0(out,fprefix,'_per_clade_merged_',var,'_',p,'p_cutoff',cutoff,'_final.xlsx'))
+  
+  
+}
+
 
 
 ### Functions related to subsetting copyKat genomic intervals based on a cutoff ###
