@@ -1,13 +1,5 @@
 # CNV based analysis using copyKat outputs for scRNA data #
-# Author: Surbhi Sona (Ting Lab) #
-
-
-## Load Dependencies ##
-
-library('TxDb.Hsapiens.UCSC.hg38.knownGene') # hg38 gene annotation ref
-library('AnnotationDbi')
-library('org.Hs.eg.db') # to get gene symbol for Entrez gene.id
-library('plyrange') # to apply dplyr functions on GRange obj
+# Author: Surbhi Sona #
 
 source('gain_loss_annotations_per_clade_functions.R')
 
