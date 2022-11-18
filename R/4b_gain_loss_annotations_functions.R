@@ -418,15 +418,19 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
    R_cp<-rowSums(anno_df2[,rpcol])
    nrpcol<-match(paste0('cell_pct_',nrclade),colnames(anno_df2))
    NR_cp<-rowSums(anno_df2[,nrpcol])
-   
+   pct.R_cp<-(R_cp/length(rclade)) *100
+   pct.NR_cp<-(NR_cp/length(rclade))*100
+
 
   #count_df<-cbind(R,NR,pct.R,pct.NR) %>% as.data.frame()
   
-  count_df<-cbind(R,NR,pct.R,pct.NR, R_cp,NR_cp) %>% as.data.frame()
+  count_df<-cbind(R,NR,pct.R,pct.NR, R_cp,NR_cp,pct.R_cp,pct.NR_cp) %>% as.data.frame()
    
   count_df$pct.R<-paste0(count_df$pct.R,'%')
   count_df$pct.NR<-paste0(count_df$pct.NR,'%')
-  
+  count_df$pct.R_cp<-paste0(count_df$pct.R_cp,'%')
+  count_df$pct.NR_cp<-paste0(count_df$pct.NR_cp,'%')
+ 
   anno_df2<-cbind(anno_df2,count_df)
   
   ## Add overlap column - overlap with old table ## - no longer need it!
