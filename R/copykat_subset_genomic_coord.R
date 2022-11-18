@@ -4,197 +4,79 @@
 
 ##### Load dependencies #####
 
-library(argparser)
 library(dplyr)
-library(gtools)
+
+source('')
+
+args<-commandArgs(trailingOnly = TRUE)
+
+mat_path=args[1]
+out=args[2]
+sname=args[3]
+var=args[4]
+hclust_path=args[5]
+k=as.numeric(args[6])
+clus=as.numeric(args[7])
+
+gi_ref_file='/home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/copyKat_220kb_genomic_fragments_table.txt'
+
+gi_ref<-read.table(gi_ref_file, header=TRUE,sep='\t')
+
 
 ##### User arguments #####
 
-parser<-arg_parser(name="copykat_subset_genomic_coord.R",description="workflow for subsetting gains/loss genomic intervals subset")
-
-parser<-add_argument(
-  parser,
-  arg='--subset_matrix_path',
-  short = '-m',
-  type="character",
-  default='./',
-  help="Enter path to copykat CNA output subset matrix")
-
-parser<-add_argument(
-  parser,
-  arg='--var',
-  short = '-v',
-  type="character",
-  default='gain',
-  help="Specify which coordinates to subset - gain or loss. Default is gain")
-
-parser<-add_argument(
-  parser,
-  arg='--gi_ref',
-  short = '-r',
-  type="character",
-  default='',
-  help="Enter the name of copykat genomic interval reference")
-
-
-parser<-add_argument(
-  parser,
-  arg='--chr_size_file',
-  short = '-c',
-  type="character",
-  default='/home/sonas/copykat/misc/hg38.chrom.sizes2.txt',
-  help="Enter path and name of chr_size file")
-
-parser<-add_argument(
-  parser,
-  arg='--prefix',
-  short = '-f',
-  type="character",
-  default='subset',
-  help="Enter file prefix for output file. Default is prefix")
-
-parser<-add_argument(
-  parser,
-  arg='--cell_cutoff',
-  short = '-t',
-  type="character",
-  default='75,50,25',
-  help="Enter cell count cutoff separated by , . Default is 75,50,25")
-
-parser<-add_argument(
-  parser,
-  arg='--out',
-  short = '-o',
-  type="character",
-  default='./',
-  help="Enter the path to output dir")
-
-
-
-args <- parse_args(parser)
-
-
-
-##### Read Inputs #####
-
-## Read copykat CNA subset matrix ##
-rec_mat2<-readRDS(args$subset_matrix_path)
-
-## Read gi ref ##
-gi_ref<-read.table(args$gi_ref_file, header=TRUE,sep='\t')
-
-##### Functions #####
-
-## This function subsets the cells for each genomic interval that have a copykat CNA value > or < cutoff ##
-
-# mat: copykat output matrix or it's subset
-# cutoff: gain or loss cutoff
-# var: specify whether copy number variation is 'gain' or 'loss'
-
-cell_count_by_cutoff<-function(mat,cutoff,var)
-{
-
-# For each row of input matrix, this function calculates number of cells having values> or < cutoff
-  
-cell_count<-vector()
-
-if(var=='loss')
-{
-for(i in 1:nrow(mat))
-  {
-  len<-length(which(mat[i,]<= (cutoff)))
-  cell_count<-append(cell_count,len)
-  }
-}else if(var=='gain')
-{
-for(i in 1:nrow(mat))
-  {
-    len<-length(which(mat[i,]>= (cutoff)))
-    cell_count<-append(cell_count,len)
-  }
-}else
-{
-  cat('please specify either loss or gain \n')
-}
-
-return(cell_count)
-}
-
-# Function to apply cell% cutoff
-
-## This function filters genomic intervals based on the given cell% cutoff ##
-
-# cell_count: per genomic interval count for cells that have CNA cutoff > or < than given threshold
-# tot_cells: total cells in the given copykat matrix
-# cutoff: what cell% cutoff to use to filter genomic intervals
-
-subset_indx<-function(cell_count,tot_cells,cell_pct_cutoff=0.75)
-{
-
-idx_list<-list()
-
-for(i in 1:length(pct_cutoff))
-{
-idx_list[[i]]<-which(cell_count>=(cell_pct_cutoff[i]*tot_cells))
-}
-
-names(idx_list)<-paste0(cutoff,'_pct')
-
-return(idx_list)
-}
-
-## This function is wrapper function that calls cell_count_by_cutoff() and subset_indx() to create subset of genomic intervals by copykat CNA values cutoff and cell count % cutoff ##
-
-# mat2: copykat output matrix or its subset
-# cna_cutoff: CNA cutoff
-# cell_pct_cutoff: cell count % cutoff
-# var: 'gain' or 'loss'
-# out: output directory
-# prefix: output file prefix
-
-subset_by_cutoff<-function(mat2,cna_cutoff,cell_pct_cutoff,var,out,prefix)
-{
-    
-# Remove genomic interval columns
-mat<-mat2[,-(1:3)]
-cols<-ncol(mat)
- 
- if(var=='gain')
-{
-cc<-cell_count_by_cutoff(mat,cutoff=cna_cutoff,var)
-g_idx<-subset_indx(cell_count=cc,tot_cells=cols,cell_pct_cutoff=cell_pct_cutoff)
-
-#gain<-lapply(1:length(g_idx),function(x){return(mat2[g_idx[[x]],1:3])})
-gain<-lapply(1:length(g_idx), function(x){return(gi_ref[g_idx[[x]],])})
-
-saveRDS(object = gain,paste0(out,prefix,'_cutoff',cna_cutoff,'_gain.rds'))
-}else if(var=='loss')
-{
- cc<-cell_count_by_cutoff(mat,cutoff=cna_cutoff,var)
- l_idx<-subset_indx(cell_count=cc,tot_cells=cols,cell_pct_cutoff=cell_pct_cutoff)
- 
- #loss<-lapply(1:length(l_idx),function(x){return(mat2[l_idx[[x]],1:3])})
- loss<-lapply(1:length(l_idx), function(x){return(gi_ref[g_idx[[x]],])})
-
- saveRDS(object = loss,paste0(out,prefix,'_cutoff',usr_cutoff,'_loss.rds'))
-}else
- {
-  cat('you need to specify variation as either gain or loss \n')
- }
-}
-
-
 # Range of cutoff
-cutoff_g<-seq(from=0.015,to=0.055,by=0.005)
+#cutoff_g<-seq(from=0.015,to=0.055,by=0.005)
+#cutoff_l<-cutoff_g*(-1)
+
+#cutoff_g<-seq(from=0.025,to=0.070,by=0.005)
+cutoff_g<-0.03
 cutoff_l<-cutoff_g*(-1)
 
-if(arg$var=='gain')
-{#Gain
-lapply(1:length(cutoff_g), function(x){subset_by_cutoff(rec_mat2,cna_cutoff=cutoff_g[x], cell_pct_cutoff=args$cell_cutoff, var='gain',out=args$out,prefix=args$prefix) })
-}else if(args$var=='loss')
-{
-#Loss
-lapply(1:length(cutoff_l), function(x){subset_by_cutoff(rec_mat2,cna_cutoff=cutoff_l[x],cell_pct_cutoff=args$cell_cutoff,var='loss',out=args$out,prefix=args$prefix) })
-}else
-{cat('Specify correct variation either gain or loss \n')}
+# tinglab paths
+#out<-'/Volumes/tingalab/Surbhi/PROJECTS_tinglab_drive/scRNA_Projects/BLADDER/copyKat/genes/gain_loss_subset/'
 
+#rec_mat2<-readRDS('/Volumes/tingalab/Surbhi/PROJECTS_tinglab_drive/scRNA_Projects/BLADDER/copyKat/matrix/discovery_subsampled_k14_recurrent_subset_matrix.rds')
+
+# HPC paths
+#out<-'/home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/genes/gain_loss_subset/'
+
+#rec_mat2<-readRDS('/home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/matrix/discovery_subsampled_k14_recurrent_subset_matrix.rds')
+
+mat<-readRDS(mat_path)
+
+hcc<-readRDS(hclust_path)
+
+#Replace . in barcodes to - (if present)
+  dot<-grep('\\.',hcc$labels)
+  if(length(dot)!=0)
+{
+     hcc$labels<-gsub('\\.','-',hcc$labels)
+   }
+
+
+hc.umap<-cutree(hcc,k=k)
+#clus<-c(1,4,5,6,10) # recurrence-associated
+#clus<-c(2,3,7,8,9) # recurrentce-non-associated
+
+
+idx<-which( hc.umap %in% clus)
+bc<-names(hc.umap)[idx]
+
+# Subset cells based on barcode
+cell_idx<-which(colnames(mat) %in% bc)
+clade_mat<-mat[,cell_idx]
+#clade_mat2<-cbind(mat[,1:3],clade_mat)
+
+#nm<-paste0(sname,'_clade',clus[i])
+nm<-paste0(sname,'_clade',clus)
+
+if(var=='gain')
+{#Gain
+cutoff<-cutoff_g
+}else if(var=='loss')
+  { cutoff<-cutoff_l}else
+        {cat('Specify correct variation either gain or loss \n')}
+
+
+lapply(1:length(cutoff), function(x){subset_by_cutoff(rec_mat=clade_mat,usr_cutoff=cutoff[x],var=var,out=out,sname=nm) })
