@@ -79,4 +79,12 @@ cutoff<-cutoff_g
         {cat('Specify correct variation either gain or loss \n')}
 
 
+
 lapply(1:length(cutoff), function(x){subset_by_cutoff(rec_mat=clade_mat,usr_cutoff=cutoff[x],var=var,out=out,sname=nm) })
+
+
+
+
+
+
+
