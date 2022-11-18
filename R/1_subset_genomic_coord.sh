@@ -33,3 +33,16 @@ clade=$SLURM_ARRAY_TASK_ID
 # Loss
 
 Rscript /home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/misc/copykat_subset_genomic_coord_per_clade.R /home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/matrix/samples17_CNA_clean_matrix.rds /home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/genes/gain_loss_subset/samples17_per_clade/ samples17 loss /home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/hclust/samples17_CNA_clean_Hclust.rds 17 ${clade}
+
+
+
+
+#### Archive #####
+
+# Save cutoffs in a file and run them in parallel
+
+export cutoff_file='/home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/script/cutoff_g.txt'
+
+#cutoff_g=$(cat ${cutoff_file} | nl -w1 -s ' ' | grep "^$SLURM_ARRAY_TASK_ID " | cut -f2 -d ' ')
+
+
