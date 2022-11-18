@@ -418,8 +418,8 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
    R_cp<-rowSums(anno_df2[,rpcol])
    nrpcol<-match(paste0('cell_pct_',nrclade),colnames(anno_df2))
    NR_cp<-rowSums(anno_df2[,nrpcol])
-   pct.R_cp<-(R_cp/length(rclade)) *100
-   pct.NR_cp<-(NR_cp/length(rclade))*100
+   pct.R_cp<-(R_cp/length(rclade))
+   pct.NR_cp<-(NR_cp/length(rclade))
 
 
   #count_df<-cbind(R,NR,pct.R,pct.NR) %>% as.data.frame()
