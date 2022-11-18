@@ -1,4 +1,4 @@
-# Author: Surbhi Sona (Ting Lab) #
+# Author: Surbhi Sona #
 
 
 print_upset_plot<-function(dat,out,fprefix,var,w=18,h=7,m='distinct')
