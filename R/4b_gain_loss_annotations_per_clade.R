@@ -81,7 +81,7 @@ var<-'loss'
 tab_l<-'samples17_annotated_genomic_ranges_loss_70p_cutoff-0.03.xlsx'
 anno_df_rec<-read.xlsx(xlsxFile = paste0(path,tab_l))
 
-get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_l,var='loss',p=pl,chr_sizes=chr_sizes,rclade=rclade,nrclade=nrclade,anno_df_old=anno_df_rec,fprefix=n17_fprefix,out=out)
+get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_l,var='loss',p=pl,chr_sizes=chr_sizes,rclade=rclade,nrclade=nrclade,gene_tab = gene_tab17,fprefix=n17_fprefix,out=out)
 
 
 ## GAINS ##
@@ -95,7 +95,7 @@ gtab_g<-'samples17_annotated_genomic_ranges_gain_70p_cutoff0.03.xlsx'
 anno_df_rec<-read.xlsx(xlsxFile = paste0(path,tab_g))
 
 
-get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_g,var='gain',p=pg,chr_sizes=chr_sizes,rclade=rclade,nrclade=nrclade,anno_df_old=anno_df_rec,fprefix=n17_fprefix,out=out)
+get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_g,var='gain',p=pg,chr_sizes=chr_sizes,rclade=rclade,nrclade=nrclade,gene_tab = gene_tab17,fprefix=n17_fprefix,out=out)
 
 
 
