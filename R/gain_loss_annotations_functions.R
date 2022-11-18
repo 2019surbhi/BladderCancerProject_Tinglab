@@ -59,43 +59,45 @@ if(save==FALSE)
 
 add_gene_anno<-function(gr)
 {
-
-# Create selected ref database
-gr_db<-genes(keepStandardChromosomes(TxDb.Hsapiens.UCSC.hg38.knownGene))
-
-#gr_db_ts<- transcripts(keepStandardChromosomes(TxDb.Hsapiens.UCSC.hg38.knownGene))
-
-# Check overlaps
-
-# returns ranges of gene interval of intersecting ranges
-#sub<-subsetByOverlaps(gr_db,gr)
-
-int<-join_overlap_intersect(x=gr_db,y=gr)
-int<-sort(int)
-
-#int_ts<-join_overlap_intersect(x=gr_db_ts,y=gr)
-#int_ts<-sort(int_ts)
+  # Following libraries must be loaded
+  #p<-c('TxDb.Hsapiens.UCSC.hg38.knownGene',
+  #     'AnnotationDbi','org.Hs.eg.db',plyrange)
   
- #Save a copy of intersect table
- bc<-int %>% as.data.frame(row.names = NULL)
- 
-# Some genes span >1 interval and these duplicate entries need to be removed to avoid errors in function
-int<-int[unique(int$gene_id),]
-
-# Get annotations for gene symbol
-gene_id<-int$gene_id
-#ts_id<-as.character(int_ts$tx_id)
-
-anno<-AnnotationDbi::select(org.Hs.eg.db, keys=gene_id, columns=c('SYMBOL',"GENENAME"), keytype='ENTREZID')
-
-# keytypes(org.Hs.eg.db)
-# anno_ts<-AnnotationDbi::select(org.Hs.eg.db, keys=ts_id, columns='SYMBOL', keytype='ENSEMBLTRANS')
-
-# merge by GeneID to annotate table
-int_anno_df<-merge(bc,anno,by.x="gene_id",by.y='ENTREZID')
- 
-return(int_anno_df)
-
+  # Create ref
+  gr_db<-genes(keepStandardChromosomes(TxDb.Hsapiens.UCSC.hg38.knownGene))
+  
+  #gr_db_ts<- transcripts(keepStandardChromosomes(TxDb.Hsapiens.UCSC.hg38.knownGene))
+  
+  # Check overlaps
+  
+  # returns ranges of gene interval of intersecting ranges
+  #sub<-subsetByOverlaps(gr_db,gr) 
+  
+  int<-join_overlap_intersect(x=gr_db,y=gr)
+  int<-sort(int)
+  
+  #Save a copy of intersect table
+  bc<-int %>% as.data.frame(row.names = NULL)
+  
+  #int_ts<-join_overlap_intersect(x=gr_db_ts,y=gr)
+  #int_ts<-sort(int_ts)
+  
+  # Some genes span >1 interval and these duplicate entries need to be removed else genes() yields error
+  
+  int<-int[unique(int$gene_id),]
+  
+  # Get annotations for gene symbol
+  gene_id<-int$gene_id
+  #ts_id<-as.character(int_ts$tx_id)
+  
+  anno<-AnnotationDbi::select(org.Hs.eg.db, keys=gene_id, columns=c('SYMBOL',"GENENAME"), keytype='ENTREZID')
+  
+  # keytypes(org.Hs.eg.db)
+  # anno_ts<-AnnotationDbi::select(org.Hs.eg.db, keys=ts_id, columns='SYMBOL', keytype='ENSEMBLTRANS')
+  
+  int_anno_df<-merge(bc,anno,by.x="gene_id",by.y='ENTREZID')
+  
+  return(int_anno_df)
 }
 
 
@@ -211,37 +213,36 @@ add_abspos_ends<-function(df_by_chr,chr_size)
 # prefix: filename prefix
 # save: if FALSE, the
 
-annotate_genomic_ranges<-function(df,var,cutoff,plot=FALSE,bw=200,out='./',prefix='',save=FALSE,chr_size)
+annotate_genomic_ranges<-function(df,var,cutoff,plot=FALSE,bw=200,out='./',prefix='',save=TRUE,chr_size)
 {
-
-# Add range and width as additional columns
-width<-df$end-df$start
-df$width<-width
-df$gi_start<-df$start
-df$gi_end<-df$end
-
-if(plot==TRUE)
-{
-  plot_genomic_coord_width(width,var,cutoff,bw,out,prefix,save=TRUE)
-}
-
-# Create GRange obj
-rownames(df)<-NULL
-
-
-# Rename chr23
-if('chr23' %in% df$chr)
-{
-  idx<-which(df$chr=='chr23')
-  df$ch[idx]<-'chrX'
-}
-gr<-makeGRangesFromDataFrame(df = df,keep.extra.columns = TRUE)
-
-# Add gene symbol
-gr_anno<-add_gene_anno(gr)
-
-return(gr_anno)
-
+  
+  # Add range and width as additional columns
+  width<-df$end-df$start
+  df$width<-width
+  df$gi_start<-df$start
+  df$gi_end<-df$end
+  
+  if(plot==TRUE)
+  {
+    plot_genomic_coord_width(width,var,cutoff,bw,out,prefix,save=TRUE)
+  }
+  
+  # Create GRange obj
+  rownames(df)<-NULL
+  
+  # Rename chr23
+  if('chr23' %in% df$chr)
+  {
+    idx<-which(df$chr=='chr23')
+    df$chr[idx]<-'chrX'
+  }
+  gr<-makeGRangesFromDataFrame(df = df,keep.extra.columns = TRUE)
+  
+  # Add gene symbol
+  gr_anno<-add_gene_anno(gr)
+  
+  return(gr_anno)
+  
 }
 
 ## Function to process gain-loss outputs per clade ##
@@ -252,13 +253,13 @@ return(gr_anno)
 # var: specify variation is 'gain' or 'loss'
 # p: cell percent cutoff (e.g. 70)
 # chr_sizes: table with chr size where chr annotation matches the chr annotation in other tables i.e. '1' vs 'chr1'
-# anno_df_old: old annotation table to check the overlap
+# gene_tab: copykay gene table to check the overlap with
 # rclade: vector specifying recurrent clades
 # nrclade: vector specifying non-recurrent clades
 # fprefix: file prefix to use for saved file
 # out: path to output dir
 
-get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,anno_df_old='',rclade,nrclade,fprefix,out)
+get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,gene_tab,rclade,nrclade,fprefix,out)
 {
   df_lst<-lapply(1:length(clade),function(x){readRDS(paste0(thresh_dir,fprefix,'_',clade[x],'_cutoff',cutoff,'_',var,'.rds'))})
   
@@ -293,12 +294,17 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
   
   names(merged_all)<-names(merged_all1)
   
-  merged_tab<-full_join(x = merged_all[[1]],y = merged_all[[2]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
+  #merged_tab<-full_join(x = merged_all[[1]],y = merged_all[[2]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
+  
+  merged_tab<-full_join(x = merged_all[[1]],y = merged_all[[2]],by=c("chr","start","end","abspos_start","abspos_end","cell_cnt","cell_pct"),suffix=c('',''))
+  
   j<-2
   for(i in 1:(length(merged_all)-2))
   {
     j<-j+1
-    merged_tab<-full_join(x=merged_tab,y = merged_all[[j]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
+    #merged_tab<-full_join(x=merged_tab,y = merged_all[[j]],by=c("chr","start","end","abspos_start","abspos_end"),suffix=c('',''))
+    
+  merged_tab<-full_join(x=merged_tab,y = merged_all[[j]],by=c("chr","start","end","abspos_start","abspos_end","cell_cnt","cell_pct"),suffix=c('',''))
     
   }
   
@@ -335,6 +341,7 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
   
   write.xlsx(anno_df_lst,paste0(out,fprefix,'_per_clade_annotated_',var,'_',p,'p_cutoff',cutoff,'.xlsx'))
   
+  # Mark/count clades that contain a given segement from the merged table
   
   clades<-list()
   clades<-lapply(1:length(anno_df_lst), function(x){cd<-rep(x=0,nrow(anno_df));
@@ -349,6 +356,7 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
     clades[[i]]<-cd
   }
   
+  
   names(clades)<-names(anno_df_lst)
   
   clade_df<-clades[[1]] %>% as.data.frame()
@@ -358,9 +366,41 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
   }
   
   colnames(clade_df)<-names(anno_df_lst)
-  anno_df2<-cbind(anno_df,clade_df)
   
-  # Removve ambiguous gene entry (has geneID but not gene name/symbol)
+# Cell count
+  cell_pct<-list()
+  cell_pct<-lapply(1:length(anno_df_lst), function(x){cp<-rep(x=0,nrow(anno_df));
+  return(cp)})
+  
+  for(i in 1:length(anno_df_lst))
+  {
+    cp<-vector()
+    cp<-cell_pct[[i]]
+    df_idx<-which(anno_df$SYMBOL %in% anno_df_lst[[i]]$SYMBOL)
+    #df_lst_idx<-which(anno_df_lst[[i]]$SYMBOL %in% anno_df$SYMBOL)
+    cp[df_idx]<-anno_df_lst[[i]]$cell_pct
+    cell_pct[[i]]<-cp
+  }
+  
+  
+  names(cell_pct)<-names(anno_df_lst)
+  
+  cell_pct_df<-cell_pct[[1]] %>% as.data.frame()
+  for(i in 2:(length(cell_pct)))
+  {
+   cell_pct_df<-cbind(cell_pct_df,cell_pct[[i]])
+  }
+  
+  colnames(cell_pct_df)<-paste0('cell_pct_',names(anno_df_lst))
+  
+  
+ # anno_df2<-cbind(anno_df,clade_df)
+  
+ anno_df2<-cbind(anno_df,clade_df,cell_pct_df)
+
+  
+  
+  # Remove ambiguous gene entry (has geneID but not gene name/symbol)
   rem<-which(is.na(anno_df2$SYMBOL)==TRUE)
   anno_df2<-anno_df2[-rem,]
   
@@ -368,37 +408,54 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
   
   rcol<-match(rclade,colnames(anno_df2))
   R<-rowSums(anno_df2[,rcol])
-  
   nrcol<-match(nrclade,colnames(anno_df2))
   NR<-rowSums(anno_df2[,nrcol])
-  
   pct.R<-(R/length(rclade)) *100
   pct.NR<-(NR/length(rclade))*100
   
-  count_df<-cbind(R,NR,pct.R,pct.NR) %>% as.data.frame()
   
-  #count_df$pct.R<-paste0(count_df$pct.R,'%')
-  #count_df$pct.NR<-paste0(count_df$pct.NR,'%')
+   rpcol<-match(paste0('cell_pct_',rclade),colnames(anno_df2))
+   R_cp<-rowSums(anno_df2[,rpcol])
+   nrpcol<-match(paste0('cell_pct_',nrclade),colnames(anno_df2))
+   NR_cp<-rowSums(anno_df2[,nrpcol])
+   
+
+  #count_df<-cbind(R,NR,pct.R,pct.NR) %>% as.data.frame()
+  
+  count_df<-cbind(R,NR,pct.R,pct.NR, R_cp,NR_cp) %>% as.data.frame()
+   
+  count_df$pct.R<-paste0(count_df$pct.R,'%')
+  count_df$pct.NR<-paste0(count_df$pct.NR,'%')
   
   anno_df2<-cbind(anno_df2,count_df)
   
-  ## Add overlap column - overlap with old table ##
+  ## Add overlap column - overlap with old table ## - no longer need it!
   
   
-  if(anno_df_old!='')
-  {
-    # Intersect to get common genes #
-    comm<-intersect(anno_df_old$SYMBOL,anno_df2$SYMBOL)
-    
-    anno_df2$overlap_w_old<-rep(0,nrow(anno_df2))
-    idx<-which(anno_df2$SYMBOL %in% comm)
-    anno_df2$overlap_w_old[idx]<-1
-  }
+  # if(anno_df_old!='')
+  # {
+  #   # Intersect to get common genes #
+  #   comm<-intersect(anno_df_old$SYMBOL,anno_df2$SYMBOL)
+  #   
+  #   anno_df2$overlap_w_old<-rep(0,nrow(anno_df2))
+  #   idx<-which(anno_df2$SYMBOL %in% comm)
+  #   anno_df2$overlap_w_old[idx]<-1
+  # }
+  # 
+  
+  # overlap with copykat table
+  
+  ov<-rep(0,nrow(anno_df2))
+  int<-intersect(gene_tab$hgnc_symbol,anno_df2$SYMBOL)
+  ov[which(anno_df2$SYMBOL %in% int)]<-1
+  anno_df2$overlap_w_ck_gene<-ov
+  
   
   write.xlsx(anno_df2,paste0(out,fprefix,'_per_clade_merged_',var,'_',p,'p_cutoff',cutoff,'_final.xlsx'))
   
   
 }
+
 
 
 
@@ -447,20 +504,36 @@ return(cell_count)
 
 subset_indx<-function(cell_count,tot_cells)
 {
+p<-(cell_count/tot_cells)*100
+p<-round(p,digits=0)
 
+pvec<-c(90,80,75,70)
 
-i75<-which(cell_count>=(0.75*tot_cells))
+tab_lst<-list()
+for(i in 1:length(pvec))
+{
+idx<-which(p>=pvec[i])
+tab_lst[[i]]<-data.frame("seg_indx"=idx,"cell_cnt"=cell_count[idx],"cell_pct"=p[idx])
+  
+}
+return(tab_lst)
+
+#i90<-which(p>=90)
+#i80<-which(p>=80)
+#i75<-which(p>=75)
+#i70<-which(p>=70)
+
+#i90<-which(cell_count>=(0.90*tot_cells))
+#i80<-which(cell_count>=(0.80*tot_cells))
+#i75<-which(cell_count>=(0.75*tot_cells))
 #i70<-which(cell_count>=(0.70*tot_cells))
-#i60<-which(cell_count>=(0.60*tot_cells))
-#i50<-which(cell_count>=(0.50*tot_cells))
-#i25<-which(cell_count>=(0.25*tot_cells))
 
-#idx_list<-list(i75,i70,i60,i50,i25)
+#idx_list<-list(i90,i80,i75,i70)
 
 #return(idx_list)
-return(i75)
 
 }
+
 
 ## Function to generate count of cells with CNV values > cutoff ##
 
@@ -470,32 +543,47 @@ return(i75)
 # out: output directory path
 # fname: filename prefix
 
-subset_by_cutoff<-function(rec_mat2,usr_cutoff,var,out,fname)
+subset_by_cutoff<-function(rec_mat,usr_cutoff,var,out,sname)
 {
-rec_mat<-rec_mat2[,-(1:5)]
+#rec_mat<-rec_mat2[,-(1:3)]
 cols<-ncol(rec_mat)
 
  if(var=='gain')
 {
 cc<-cell_count_by_cutoff(rec_mat,cutoff=usr_cutoff,var)
-g_idx<-subset_indx(cell_count=cc,tot_cells=cols)
-gain<-lapply(1:length(g_idx),function(x){return(rec_mat2[g_idx[[x]],1:5])})
-#names(gain)<-c('75g','70g','60g','50g','25g')
-
+g_tab<-subset_indx(cell_count=cc,tot_cells=cols)
+g_idx<-sapply(g_tab,'[[',1)
+cell_cnt<-sapply(g_tab,'[[',2)
+cell_pct<-sapply(g_tab,'[[',3)
+#gain<-lapply(1:length(g_idx),function(x){return(rec_mat2[g_idx[[x]],1:3])})
+gain<-lapply(1:length(g_idx), function(x){final_tab<-(gi_ref[g_idx[[x]],]);
+                                          final_tab$cell_cnt<-cell_cnt[[x]];
+                                          final_tab$cell_pct<-cell_pct[[x]];
+                                          return(final_tab)})
+names(gain)<-c('90g','80g','75g','70g')
 saveRDS(object = gain,paste0(out,sname,'_cutoff',usr_cutoff,'_gain.rds'))
 }else if(var=='loss')
 {
  cc<-cell_count_by_cutoff(rec_mat,cutoff=usr_cutoff,var)
- l_idx<-subset_indx(cell_count=cc,tot_cells=cols)
- loss<-lapply(1:length(l_idx),function(x){return(rec_mat2[l_idx[[x]],1:5])})
- #names(loss)<-c('75l','70l','60l','50l','25l')
- saveRDS(object = loss,paste0(out,fname,'_cutoff',usr_cutoff,'_loss.rds'))
-}else
+ l_tab<-subset_indx(cell_count=cc,tot_cells=cols)
+ l_idx<-sapply(l_tab,'[[',1)
+ cell_cnt<-sapply(l_tab,'[[',2)
+ cell_pct<-sapply(l_tab,'[[',3)
+ #loss<-lapply(1:length(l_idx),function(x){return(rec_mat2[l_idx[[x]],1:3])})
+ loss<-lapply(1:length(l_idx), function(x){final_tab<-(gi_ref[l_idx[[x]],]);
+                                          final_tab$cell_cnt<-cell_cnt[[x]];
+                                          final_tab$cell_pct<-cell_pct[[x]];
+                                          return(final_tab)})
+ names(loss)<-c('90l','80l','75l','70l')
+ saveRDS(object = loss,paste0(out,sname,'_cutoff',usr_cutoff,'_loss.rds'))
+  }else
  {
   cat('you need to specify variation as either gain or loss \n')
  }
 }
 
+
+### Archived Functions ###
 
 intersect_by_abs<-function(df,ref_tab,out,var,cell_cutoff,cnv_cutoff,save=FALSE)
 {
