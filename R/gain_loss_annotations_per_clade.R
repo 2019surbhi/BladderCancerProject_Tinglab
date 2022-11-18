@@ -6,9 +6,15 @@ chr_sizes<-fread('//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/co
 
 
 ### N=8 ####
+
+gene_tab<-read.table('/home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/Misc/primary_recurrent_gene_ref.txt',sep='\t',header=TRUE)
+
 out<-'/home/sonas/copykat/genes/gain_loss/primary_recurrent_per_clade/annotated_table/'
 
-thresh_dir<-'//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/primary_recurrent_per_clade/thresholds/'
+#thresh_dir<-'//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/primary_recurrent_per_clade/thresholds/'
+
+# New threhold directory which now has cell count and cell% 
+thresh_dir<-'//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/primary_recurrent_per_clade/new_threshold/'
 
 n8_fprefix<-'primary_recurrent'
 clade<-paste0('clade',1:10)
@@ -27,10 +33,9 @@ pl<-70
 var<-'loss'
 
 
-anno_df_rec<-read.xlsx(xlsxFile = path,sheet = var)
+#anno_df_rec<-read.xlsx(xlsxFile = path,sheet = var)
 
-
-get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_l,var='loss',p=pl,chr_sizes=chr_sizes,anno_df_old=anno_df_rec,rclade=rclade,nrclade=nrclade,fprefix=n8_fprefix,out=out)
+get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_l,var='loss',p=pl,chr_sizes=chr_sizes,rclade=rclade,nrclade=nrclade,fprefix=n8_fprefix,out=out,gene_tab = gene_tab)
 
 
 ## GAINS ##
@@ -39,18 +44,23 @@ cutoff_g<-(0.03)
 pg<-70
 var<-'gain'
 
-anno_df_rec<-read.xlsx(xlsxFile = path,sheet = var)
+#anno_df_rec<-read.xlsx(xlsxFile = path,sheet = var)
 
 
-get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_g,var='gain',p=pg,chr_sizes=chr_sizes,anno_df_old=anno_df_rec,fprefix=n8_fprefix,out=out)
+get_per_clade_annotated_table(thresh_dir=thresh_dir,clade=clade,cutoff=cutoff_g,var='gain',p=pg,chr_sizes=chr_sizes,rclade=rclade,nrclade=nrclade,fprefix=n8_fprefix,out=out,gene_tab = gene_tab)
+
 
 
 
 ### N=17 ###
 
+gene_tab17<-read.table('/home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/Misc/sample17_gene_ref.txt',sep='\t',header=TRUE)
+
 out<-'/home/sonas/copykat/genes/gain_loss/sample17_per_clade/annotated_table/'
 
-thresh_dir<-'//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/samples17_per_clade/thresholds/'
+#thresh_dir<-'//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/samples17_per_clade/thresholds/'
+
+thresh_dir<-'//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/samples17_per_clade/new_threshold/'
 
 path<-'/home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/genes/gain_loss_subset/samples17/annotated_table/'
 
