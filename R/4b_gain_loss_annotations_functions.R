@@ -308,6 +308,9 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
     
   }
   
+  rem<-which(colnames(merged_tab) %in% c('cell_cnt','cell_pct'))
+  merged_tab<-merged_tab[,-rem]
+
   ## Annotate ##
   
   # Remove rows where start>end
