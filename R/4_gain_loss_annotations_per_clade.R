@@ -1,5 +1,6 @@
 # Author: Surbhi Sona
 
+source('4_gain_loss_annotations_functions.R')
 
 chr_sizes<-fread('//home/sonas/tingalab/Surbhi/PROJECTS_tinglab_drive/BLADDER/copyKat/Misc/hg38.chrom.sizes2.txt')
 
@@ -213,49 +214,6 @@ length(rec_only)
 length(nrec_only)
 
 length(c1)
-
-
-### Upset Plot ###
-
-out<-'/home/sonas/copykat/genes/gain_loss/primary_recurrent_per_clade/'
-
-fprefix<-'primary_recurrent'
-var<-'loss'
-var<-'gain'
-
-dat<-list(c1_genes,common,rec_only,nrec_only)
-names(dat)<-c('clade1','common','R_only','NR_only')
-odr<-names(dat)
-m<-'distinct'
-#m<-'intersect'
-w<-18
-h<-7
-
-cmat<-make_comb_mat(dat, mode =m)
-cs<-comb_size(cmat)
-
-fname<-paste(fprefix,var,m,sep='_')
-ht=UpSet(cmat, set_order = odr,
-         comb_order = order(comb_size(cmat),decreasing = TRUE),
-         top_annotation = HeatmapAnnotation(
-           "Intersection size" = anno_barplot(cs,
-                                              ylim = c(0, max(cs)*1.1),
-                                              border = FALSE,
-                                              gp = gpar(fill = "black"),
-                                              height = unit(4, "cm")
-           ),
-           annotation_name_side = "left",
-           annotation_name_rot = 90,gp = gpar(fontsize=18)))
-
-pdf(paste0(out,fname,'_upset_plot.pdf'),width=w,height = h)
-ht=draw(ht)
-od=column_order(ht)
-ht=ht+decorate_annotation("Intersection size", {
-  grid.text(cs[od], x = seq_along(cs), y = unit(cs[od], "native") + unit(2, "mm"),
-            default.units = "native", just = c("left", "bottom"),
-            gp = gpar(fontsize = 20, col = "#404040"))})
-dev.off()
-
 
 
 
