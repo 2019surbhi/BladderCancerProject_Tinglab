@@ -3,18 +3,31 @@
 
 # functions 
 
+save_norm_exp_mat1<-function(obj,assay,fname)
+{
+  raw<-obj@assays[[assay]]@counts %>% as.data.frame.matrix()
+  expr<-apply(raw,2,function(x) {x/sum(x) *10000})
+  expr<-cbind(rownames(expr),expr)
+  rownames(expr)<-NULL
+  colnames(expr)<-c('Gene',colnames(expr)[-1])
+  expr<-as.data.frame(expr)
+  write.table(x = expr,
+              file =fname, sep = '\t', 
+              row.names = F, col.names = T, quote = F)
+}
+
 save_norm_exp_mat<-function(obj,assay,fname)
 {
- raw<-obj@assays[[assay]]@counts %>% as.data.frame.matrix()
- expr<-apply(raw,2,function(x) {x/sum(x) *10000})
- expr<-cbind(rownames(expr),expr)
- rownames(expr)<-NULL
- colnames(expr)<-c('Gene',colnames(expr)[-1])
- expr<-as.data.frame(expr)
- write.table(x = expr,
-            file =fname, sep = '\t', 
-            row.names = F, col.names = T, quote = F)
+  dat<-obj@assays[[assay]]@data %>% as.data.frame.matrix()
+  
+  rownames(dat)<-NULL
+  colnames(dat)<-c('Gene',colnames(dat)[-1])
+  dat<-as.data.frame(dat)
+  write.table(x = dat,
+              file =fname, sep = '\t', 
+              row.names = F, col.names = T, quote = F)
 }
+
 save_metadata<-function(obj,meta,fname)
 {
  metadat<-as.data.frame(obj@meta.data[,meta])
