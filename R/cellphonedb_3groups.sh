@@ -4,6 +4,9 @@ input_dir='/Users/sonas/Documents/PROJECTS/BLADDER/RESULTS/cellphonedb/inputs/'
 out_dir='/Users/sonas/Documents/PROJECTS/BLADDER/RESULTS/cellphonedb/group_comparison/'
 
 prefix='Naive_w'
+prefix='Naive_wo'
+prefix='Recurrent'
+
 counts=${input_dir}${prefix}/
 meta=${input_dir}${prefix}/${prefix}_metadata.txt
 
