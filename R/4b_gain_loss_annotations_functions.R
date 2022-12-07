@@ -311,20 +311,18 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
   rem<-which(colnames(merged_tab) %in% c('cell_cnt','cell_pct'))
   merged_tab<-merged_tab[,-rem]
 
-  ## Annotate ##
-  
-  # Remove rows where start>end
-  
-  # rem<-which((merged_tab$end-merged_tab$start)<0)
-  # merged_tab<-merged_tab[-rem,]
+  # Remove redundant rows
+  uniq<-unique(merged_tab$abspos_start)
+  merged_tab<-merged_tab[match(uniq,merged_tab$abspos_start),]
   
   # annotate main table
-  anno_df<-annotate_genomic_ranges(df = merged_tab,var='loss',
+  anno_df<-annotate_genomic_ranges(df = merged_tab,var=var,
                                    cutoff=cutoff_l,plot=FALSE,
                                    out=out,
-                                   prefix=paste0(fprefix,'_loss_cutoff',cutoff_l),
+                                   prefix=paste0(fprefix,'_',var,'_cutoff',cutoff),
                                    save=FALSE,chr_size=chr_size)
   
+ 
   
   # annotate per clade tables
   
@@ -428,12 +426,6 @@ get_per_clade_annotated_table<-function(thresh_dir,clade,cutoff,var,p,chr_sizes,
   #count_df<-cbind(R,NR,pct.R,pct.NR) %>% as.data.frame()
   
   count_df<-cbind(R,NR,pct.R,pct.NR, R_cp,NR_cp,pct.R_cp,pct.NR_cp) %>% as.data.frame()
-   
-  count_df$pct.R<-paste0(count_df$pct.R,'%')
-  count_df$pct.NR<-paste0(count_df$pct.NR,'%')
-  count_df$pct.R_cp<-paste0(count_df$pct.R_cp,'%')
-  count_df$pct.NR_cp<-paste0(count_df$pct.NR_cp,'%')
- 
   anno_df2<-cbind(anno_df2,count_df)
   
   ## Add overlap column - overlap with old table ## - no longer need it!
