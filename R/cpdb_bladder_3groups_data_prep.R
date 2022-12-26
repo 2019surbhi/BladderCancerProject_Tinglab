@@ -25,12 +25,10 @@ library(dplyr)
 library(tidyr)
 library(purrr)
 
-
-
 # The testing is done per group (total 3) based on BCG treatment status. 
 
 
-# functions 
+##### Functions ##### 
 
 save_norm_exp_mat1<-function(obj,assay,fname)
 {
@@ -48,7 +46,7 @@ save_norm_exp_mat1<-function(obj,assay,fname)
 save_norm_exp_mat<-function(obj,assay,fname)
 {
   dat<-obj@assays[[assay]]@data %>% as.data.frame.matrix()
-  
+  dat<-cbind(rownames(dat),dat)
   rownames(dat)<-NULL
   colnames(dat)<-c('Gene',colnames(dat)[-1])
   dat<-as.data.frame(dat)
@@ -59,26 +57,26 @@ save_norm_exp_mat<-function(obj,assay,fname)
 
 save_metadata<-function(obj,meta,fname)
 {
- metadat<-as.data.frame(obj@meta.data[,meta])
- metadat<-cbind(rownames(obj@meta.data),metadat)
- rownames(metadat)<-NULL
- colnames(metadat)<-c('Cell',meta)
- 
-# Save meta data and table
- 
- write.table(x = metadat,
-             file =fname, sep = '\t', row.names = F, 
-             col.names = T, quote = F)
+  metadat<-as.data.frame(obj@meta.data[,meta])
+  metadat<-cbind(rownames(obj@meta.data),metadat)
+  rownames(metadat)<-NULL
+  colnames(metadat)<-c('Cell',meta)
+  
+  # Save meta data and table
+  
+  write.table(x = metadat,
+              file =fname, sep = '\t', row.names = F, 
+              col.names = T, quote = F)
 }
 
 metadata_cutoff_based_subset<-function(obj,meta='cell_label',cutoff=10)
 {
-tab<-table(obj@meta.data[,meta]) %>% as.data.frame()
-k<-which(tab$Freq>cutoff)
-keep<-as.character(tab$Var1[k])
-Idents(obj)<-meta
-sub_obj<-subset(obj,idents=keep)
-return(sub_obj)
+  tab<-table(obj@meta.data[,meta]) %>% as.data.frame()
+  k<-which(tab$Freq>cutoff)
+  keep<-as.character(tab$Var1[k])
+  Idents(obj)<-meta
+  sub_obj<-subset(obj,idents=keep)
+  return(sub_obj)
 }
 
 
@@ -93,7 +91,10 @@ sub_nw<-subset(obj,ident='Naive_w') # 32909 cells
 sub_nwo<-subset(obj,ident='Naive_wo') # 103534 cells
 sub_rec<-subset(obj,ident='Recurrent') # 113786 cells
 
-### 3. Now subset by compartment ###
+# Combine both naive groups
+sub_n<-subset(obj,ident=c('Naive_w','Naive_wo')) # 136443 cells
+
+### 3. Now subset by compartment ### - Do not run
 
 ## Naive_w ##
 #Idents(sub_nw)<-'low_res_compartment'
@@ -134,33 +135,55 @@ colnames(cell_tab)<-c('cell_type','count')
 write.table(cell_tab,paste0(out,'uro_imm_cell_count_Recurrent.txt'), sep='\t',row.names=FALSE)
 
 
+## Naive combined ##
+cell_tab<-table(sub_n@meta.data$cell.names) %>% 
+  as.data.frame()
+
+colnames(cell_tab)<-c('cell_type','count')
+write.table(cell_tab,paste0(out,'uro_imm_cell_count_Naive.txt'), sep='\t',row.names=FALSE)
+
 ### 5. Now create cpdb inputs ###
 
 ## a) Naive_w ##
 prefix<-'Naive_w'
 
-sub<-metadata_cutoff_based_subset(obj=sub_nw,meta='cell.names',cutoff=10) # 30696 cells remain
+sub<-metadata_cutoff_based_subset(obj=sub_nw,meta='cell.names',cutoff=10)
 
 # Save metadata #
 save_metadata(sub,meta='cell.names',fname=paste0(out,prefix,'_metadata.txt'))
 
 # Save norm expression matrix #
 
-writeMM(sub@assays$RNACleaned@data, file = paste0(out,prefix,'_matrix.mtx'))
+#save_norm_exp_mat(sub,assay='SCT',fname=paste0(out,prefix,'_counts.txt'))
 
-#save_norm_exp_mat(sub,assay='RNACleaned',fname=paste0(out,prefix,'_counts.txt'))
+writeMM(sub@assays$SCT@data, file = paste0(out,prefix,'/matrix.mtx'))
+
+write(x = colnames(sub@assays$SCT@data), file = paste0(out,prefix,"/barcodes.tsv"))
+
+write(x = rownames(sub@assays$SCT@data), file = paste0(out,prefix,"/features.tsv"))
+
 
 
 ## b) Naive_wo ##
 
 prefix<-'Naive_wo'
 sub<-metadata_cutoff_based_subset(obj=sub_nwo,meta='cell.names',cutoff=10) # 
+
 ### Save metadata ###
-save_metadata(sub,meta='cell.names',fname=paste0(out,prefix,'_metadata.txt'))
+save_metadata(sub,meta='cell.names',fname=paste0(out,prefix,'/',prefix,'_metadata.txt'))
+
 ### Save norm expression matrix ###
 #save_norm_exp_mat(sub,assay='RNACleaned',fname=paste0(out,prefix,'_counts.txt'))
-writeMM(sub@assays$RNACleaned@data, file = paste0(out,prefix,'_matrix.mtx'))
 
+#save_norm_exp_mat(sub,assay='SCT',fname=paste0(out,prefix,'_counts.txt'))
+
+writeMM(sub@assays$SCT@data, file = paste0(out,prefix,'/matrix.mtx'))
+
+write(x = colnames(sub@assays$SCT@data), file = paste0(out,prefix,"/barcodes.tsv"))
+
+write(x = rownames(sub@assays$SCT@data), file = paste0(out,prefix,"/features.tsv"))
+
+mat<-readMM(paste0(out,prefix,'/matrix.mtx'))
 
 ## c) Recurrent ##
 prefix<-'Recurrent'
@@ -168,9 +191,37 @@ prefix<-'Recurrent'
 sub<-metadata_cutoff_based_subset(obj=sub_rec,meta='cell.names',cutoff=10) #  cells remain
 
 ### Save metadata ###
-save_metadata(sub,meta='cell.names',fname=paste0(out,prefix,'_metadata.txt'))
+save_metadata(sub,meta='cell.names',fname=paste0(out,prefix,'/',prefix,'_metadata.txt'))
 
 ### Save norm expression matrix ###
 #save_norm_exp_mat(sub,assay='RNACleaned',fname=paste0(out,prefix,'_counts.txt'))
-writeMM(sub@assays$RNACleaned@data, file = paste0(out,prefix,'_matrix.mtx'))
+
+writeMM(sub@assays$SCT@data, file = paste0(out,prefix,'/matrix.mtx'))
+write(x = colnames(sub@assays$SCT@data), file = paste0(out,prefix,"/barcodes.tsv"))
+
+write(x = rownames(sub@assays$SCT@data), file = paste0(out,prefix,"/features.tsv"))
+
+
+# d) Naive combined
+
+prefix<-'Naive'
+
+sub<-metadata_cutoff_based_subset(obj=sub_n,meta='cell.names',cutoff=10) #  cells remain
+
+### Save metadata ###
+save_metadata(sub,meta='cell.names',fname=paste0(out,prefix,'/',prefix,'_metadata.txt'))
+
+### Save norm expression matrix ###
+#save_norm_exp_mat(sub,assay='RNACleaned',fname=paste0(out,prefix,'_counts.txt'))
+
+writeMM(sub@assays$SCT@data, file = paste0(out,prefix,'/matrix.mtx'))
+
+write(x = colnames(sub@assays$SCT@data), file = paste0(out,prefix,"/barcodes.tsv"))
+
+write(x = rownames(sub@assays$SCT@data), file = paste0(out,prefix,"/features.tsv"))
+
+
+
+
+
 
