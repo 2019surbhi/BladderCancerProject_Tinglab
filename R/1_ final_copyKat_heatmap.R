@@ -18,6 +18,8 @@ arr=args[1] # array of sample index: eg. 6,7,35
 sname<-args[2] #sample name to attach to heatmap output or say 'merged' or 'recurrent'
 cut<-as.numeric(args[3]) # input for cutree (k or number of clusters)
 mode<-args[4] # enter 'saved' to start load matrix and hclust obj, saved_hclust to load hclust obj and anything else to compute everything
+sub<-as.numeric(args[5]) # Enter 0 to not subsample otherwise a fraction (e.g. 0.5 for 50% subsampling of the matrix)
+
 
 # Default inputs
 sfile<-'/home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/sample_table.txt'
@@ -32,7 +34,27 @@ seurat_obj<-'/home/sonas/beegfs/data/v11.pass7p.uroepithelial.clean.v2.rds'
 
 ## 1. Read Inputs ## 
 
-if(mode=='saved')
+if(mode=='subsampled')
+{
+cat('Reading matrix  \n')
+tumor.mat<-readRDS(paste0(out,'matrix/',sname,'_matrix.rds'))
+
+if(sub!=0)
+{
+ ncell<-ncol(tumor.mat)
+ select<-sample(colnames(tumor.mat),(sub*ncell), replace=FALSE)
+ tumor.mat<-tumor.mat[,select]
+}
+
+cat('Performing hierarchical clustering \n')
+
+   # Perform clustering
+   hcc<-hclust(parallelDist::parDist(t(tumor.mat),threads=20, method = "euclidean"), method = "ward.D2")
+
+   #Save
+   saveRDS(hcc, paste0(out,'hclust/',sname,'subsampled_',sub,'_Hclust', ".rds"))
+
+}else if(mode=='saved')
 {
 
 cat('Reading matrix  \n')
@@ -95,7 +117,7 @@ cat('Reading saved hclust obj: ', paste0(out,'hclust/',sname,'_Hclust.rds'), '\n
    hcc<-hclust(parallelDist::parDist(t(tumor.mat),threads=20, method = "euclidean"), method = "ward.D2")
 
    #Save
-   saveRDS(hcc, paste0(out,'hclust/',sname,'_Hclust', ".rds"))
+   saveRDS(hcc, paste0(out,'hclust/',sname,'subsampled_',sub,'_Hclust', ".rds"))
   }
 }
 
@@ -144,7 +166,7 @@ tab<-cbind(group,tab)
 rownames(tab)<-NULL
 
 cat('saving proportions table \n')
-write.csv(tab,paste0(out,'prop_tables/',sname,'_cut',cut,'_sample_prop_by_hclust_group.csv'),row.names = FALSE)
+write.csv(tab,paste0(out,'prop_tables/',sname,'_subsample',sub,'_cut',cut,'_sample_prop_by_hclust_group.csv'),row.names = FALSE)
 
 rm(tab)
 
@@ -194,6 +216,15 @@ if(length(rem>0)) #check if there is at least 1 match
  }
 
 
+# Subsample (optional)
+
+#if(sub!=0)
+#{
+#ncell<-ncol(tumor.mat)
+#select<-sample(colnames(tumor.mat),(sub*ncell), replace=FALSE)
+#tumor.mat<-tumor.mat[,select]
+#}
+
 # Now extract sampleID
 bc<-colnames(tumor.mat)
 
@@ -204,33 +235,33 @@ o<-match(names(hc.umap),bc)
 cat(length(o), 'cells matched \n')
 ordered_bc<-bc[o]
 
-cat('Adding scallop gene legend \n')
-gene_tab<-readRDS(meta)
+#cat('Adding scallop gene legend \n')
+#gene_tab<-readRDS(meta)
 
-select<-match(ordered_bc,rownames(gene_tab))
-select<-select[complete.cases(select)]
-genes_sub<-gene_tab[select,1] %>% as.data.frame()
-genes_sub$cells<-rownames(gene_tab)[select]
-colnames(genes_sub)<-c('clusterID','cells')
+#select<-match(ordered_bc,rownames(gene_tab))
+#select<-select[complete.cases(select)]
+#genes_sub<-gene_tab[select,1] %>% as.data.frame()
+#genes_sub$cells<-rownames(gene_tab)[select]
+#colnames(genes_sub)<-c('clusterID','cells')
 
 # Now match cell bc
-gene_prog_label<-rep(0,ncol(tumor.mat))
+#gene_prog_label<-rep(0,ncol(tumor.mat))
 
-indx<-match(genes_sub$cells,ordered_bc)
-gene_prog_label[indx]<-genes_sub$clusterID
+#indx<-match(genes_sub$cells,ordered_bc)
+#gene_prog_label[indx]<-genes_sub$clusterID
 
-rm(gene_tab)
+#rm(gene_tab)
 
 #If the ordered barcodes match the cell barcodes if hc.umap
-cat('checking barcode order in hc.umap \n')
-identical(names(hc.umap),ordered_bc)
-df2<-data.frame('gene_program'=gene_prog_label,'cluster'=hc.umap)
-tab2<-table(df2$cluster,df2$gene_program) %>% as.data.frame.matrix()
+#cat('checking barcode order in hc.umap \n')
+#identical(names(hc.umap),ordered_bc)
+#df2<-data.frame('gene_program'=gene_prog_label,'cluster'=hc.umap)
+#tab2<-table(df2$cluster,df2$gene_program) %>% as.data.frame.matrix()
 
-cat('saving gene prog proportions table \n')
-write.csv(tab2,paste0(out,'prop_tables/',sname,'_cut',cut,'_gene_prog_cell_prop_by_hclust_group.csv'),row.names = TRUE)
+#cat('saving gene prog proportions table \n')
+#write.csv(tab2,paste0(out,'prop_tables/',sname,'_cut',cut,'_gene_prog_cell_prop_by_hclust_group.csv'),row.names = TRUE)
 
-rm(tab2)
+#rm(tab2)
 
 cat('Splitting barcodes to get sampleID \n')
 bc_lst<-strsplit(ordered_bc,split='_')
@@ -241,10 +272,10 @@ primary_recurrent_label<-stable$primary_recurrent[match(sindx,stable$sindex)]
 
 ns<-unique(sample_label) %>% length()
 np<-unique(patient_label) %>% length()
-ng<-unique(gene_prog_label) %>% length()
+#ng<-unique(gene_prog_label) %>% length()
 
 # Create color annotations
-gene_prog<-my_col2(ng)[as.numeric(factor(gene_prog_label))]
+#gene_prog<-my_col2(ng)[as.numeric(factor(gene_prog_label))]
 sample<-my_col(ns)[as.numeric(factor(sample_label))]
 patient<-rbPal7(np)[as.numeric(factor(patient_label))]
 primary_recurrent<-c('green','red')[as.numeric(factor(primary_recurrent_label))]
@@ -252,7 +283,7 @@ primary_recurrent<-c('green','red')[as.numeric(factor(primary_recurrent_label))]
 d<-length(unique(hc.umap))
 hgrp<-rbPal4(d)[as.numeric(factor(hc.umap))]
 
-names(gene_prog)<-gene_prog_label
+#names(gene_prog)<-gene_prog_label
 names(sample)<-sample_label
 names(patient)<-patient_label
 names(primary_recurrent)<-primary_recurrent_label
@@ -262,8 +293,8 @@ names(hgrp)<-hc.umap
 ## 4. Print Heatmap ##
 
 # Create legends and legends colors
-gcol<-gene_prog[!duplicated(gene_prog)]
-g<-names(gcol)
+#gcol<-gene_prog[!duplicated(gene_prog)]
+#g<-names(gcol)
 
 scol<-sample[!duplicated(sample)]
 s<-names(scol)
@@ -289,7 +320,7 @@ df.merge.sorted <- df.merge[order(df.merge$y),]
 labs<-unique(df.merge.sorted$x)
 dend_colrd <- color_branches(dend, k = cut, groupLabels = labs)
 
-#dend_colrd <- color_branches(dend, k = cut)
+dend_colrd <- color_branches(dend, k = cut)
 
 rm(dend)
 rm(df.merge.sorted)
@@ -312,30 +343,30 @@ if(length(unique(sample_label))>length(unique(patient_label)))
 {
   if(length(unique(primary_recurrent_label))>1)
   {
-    annotations<-rbind(hgrp,hgrp,sep,gene_prog,gene_prog,sep,sample,sample,sep,patient,patient,sep,primary_recurrent,primary_recurrent)
-    rownames(annotations)<-c('hcluster','','','gene_prog','','','sample','','','patient','','','primary_recurrent','')
+    annotations<-rbind(hgrp,hgrp,sep,sample,sample,sep,patient,patient,sep,primary_recurrent,primary_recurrent)
+    rownames(annotations)<-c('hcluster','','','sample','','','patient','','','primary_recurrent','')
     
-    jpeg(paste(out,'final_heatmap/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly_legend.jpeg",sep=""), height=20*250, width=1000, res=100) 
+    jpeg(paste(out,'final_heatmap/',sub,'/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly_legend.jpeg",sep=""), height=20*250, width=1000, res=100) 
     plot.new()    
     legend("topleft", legend=s,col=scol,title='sample', pch=15, cex=3, bty='n')
     legend("top",inset=c(2,0.5),legend=r,col=rcol,title='primary/recurrent', pch=15, cex=3, bty='n')
     
     legend("topright",legend=p, col=pcol,title='patient',pch=15, cex=3, bty='n')
     legend("bottomright",legend=hg,col=hcol,title='h-clusters', pch=15, cex=3, bty='n')
-    legend("bottomleft",legend=g,col=gcol,title='gene-program',pch=15, cex=3, bty='n')
+   # legend("bottomleft",legend=g,col=gcol,title='gene-program',pch=15, cex=3, bty='n')
     dev.off()
     
   }else
   {
-    annotations<-rbind(hgrp,hgrp,sep,gene_prog,gene_prog,sep,sample,sample,sep,patient,patient)
-    rownames(annotations)<-c('hcluster','','','gene_prog','','','sample','','','patient','')
+    annotations<-rbind(hgrp,hgrp,sep,sample,sample,sep,patient,patient)
+    rownames(annotations)<-c('hcluster','','','sample','','','patient','')
     
-    jpeg(paste(out,'final_heatmap/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly_legend.jpeg",sep=""), height=20*250, width=1000, res=100)
+    jpeg(paste(out,'final_heatmap/',sub,'/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly_legend.jpeg",sep=""), height=20*250, width=1000, res=100)
     plot.new()
     legend("topleft", legend=s,col=scol,title='sample', pch=15, cex=3, bty='n')
     legend("topright",legend=p, col=pcol,title='patient',pch=15, cex=3, bty='n')
     legend("bottomright",legend=hg,col=hcol,title='h-clusters', pch=15, cex=3, bty='n')
-    legend("bottomleft",legend=g,col=gcol,title='gene-program',pch=15, cex=3, bty='n')
+    #legend("bottomleft",legend=g,col=gcol,title='gene-program',pch=15, cex=3, bty='n')
     dev.off()
     
   }
@@ -343,33 +374,38 @@ if(length(unique(sample_label))>length(unique(patient_label)))
 {
   if(length(unique(primary_recurrent_label))>1)
   {
-    annotations<-rbind(hgrp,hgrp,sep,gene_prog,gene_prog,sep,sample,sample,sep,primary_recurrent,primary_recurrent)
-    rownames(annotations)<-c('hcluster','','','gene_prog','','','sample','','','primary_recurrent','')
+    annotations<-rbind(hgrp,hgrp,sep,sample,sample,sep,primary_recurrent,primary_recurrent)
+    rownames(annotations)<-c('hcluster','','','sample','','','primary_recurrent','')
     
-    jpeg(paste(out,'final_heatmap/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly_legend.jpeg",sep=""), height=20*250, width=2000, res=100)  
+    jpeg(paste(out,'final_heatmap/',sub,'/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly_legend.jpeg",sep=""), height=20*250, width=2000, res=100)  
     plot.new() 
     legend("topleft", legend=s,col=scol,title='sample', pch=15, cex=3, bty='n')
     legend("top",inset=c(2,0.5),legend=r,col=rcol,title='primary/recurrent', pch=15, cex=3, bty='n')
     legend("bottomright",legend=hg,col=hcol,title='h-clusters', pch=15, cex=3, bty='n')
-    legend("bottomleft",legend=g,col=gcol,title='gene-program',pch=15, cex=3, bty='n')
+    #legend("bottomleft",legend=g,col=gcol,title='gene-program',pch=15, cex=3, bty='n')
     dev.off()
     
   }else
   {
-    annotations<-rbind(hgrp,hgrp,sep,gene_prog,gene_prog,sep,sample,sample)
-    rownames(annotations)<-c('hcluster','','','gene_prog','','','sample','')
+    annotations<-rbind(hgrp,hgrp,sep,sample,sample)
+    rownames(annotations)<-c('hcluster','','','sample','')
     
-    jpeg(paste(out,'final_heatmap/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly_legend.jpeg",sep=""), height=20*250, width=2000, res=100)   
+    jpeg(paste(out,'final_heatmap/',sub,'/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly_legend.jpeg",sep=""), height=20*250, width=2000, res=100)   
     plot.new()
     legend("topleft", legend=s,col=scol,title='sample', pch=15, cex=3, bty='n')
     legend("bottomright",legend=hg,col=hcol,title='h-clusters', pch=15, cex=3, bty='n')
-    legend("bottomleft",legend=g,col=gcol,title='gene-program',pch=15, cex=3, bty='n')
+    #legend("bottomleft",legend=g,col=gcol,title='gene-program',pch=15, cex=3, bty='n')
     dev.off() 
   }
 }
+
+
+mat<-t(tumor.mat)
+rm(tumor.mat)
+
    jpeg(paste(out,'final_heatmap/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly.jpeg",sep=""), height=h*250, width=4000, res=100)
 
-    copykat::heatmap.3(t(tumor.mat),dendrogram="row",
+    copykat::heatmap.3(mat,dendrogram="row",
                        ColSideColors=chr1,
                        col=my_palette,RowSideColors = annotations,
                        notecol="black",
@@ -381,4 +417,20 @@ if(length(unique(sample_label))>length(unique(patient_label)))
  
     dev.off()
     
+
+# temp code
+
+#  jpeg(paste(out,'final_heatmap/',sub,'/',sname,'_cut',cut,"_Cluster_Heatmaptumoronly.jpeg",sep=""), height=h*250, width=4000, res=100)
+
+#    copykat::heatmap.3(mat,
+#                       ColSideColors=chr1,
+#                       col=my_palette,
+#                       notecol="black",
+#                       Colv=NA,Rowv = NA,
+#                       breaks=col_breaks, key=TRUE,
+#                       keysize=1, density.info="histogram",denscol='black',trace="none",
+#                       cexRow=0.1,cexCol=0.1,cex.main=1,cex.lab=0.1,
+#                       symm=F,symkey=F,symbreaks=F, cex=1,cex.main=4, margins=c(10,10))
+
+#    dev.off()
 
