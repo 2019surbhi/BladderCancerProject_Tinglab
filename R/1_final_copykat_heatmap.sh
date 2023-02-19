@@ -15,7 +15,7 @@ module load R/4.1.0
 
 #Rscript final_copyKat_heatmap.R 6,7,35,10,36,43,44,45 recurrent_pairs 8 saved 
 
-Rscript final_copyKat_heatmap.R 6,7,35,10,36,43,44,45 recurrent_pairs 10 saved
+#Rscript final_copyKat_heatmap.R 6,7,35,10,36,43,44,45 recurrent_pairs 10 saved
 
 #Rscript save_mat.R 6,7,35,10,36,43,44,45 recurrent_pairs 8 notsaved
 
