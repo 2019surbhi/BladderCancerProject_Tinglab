@@ -1,3 +1,5 @@
+## Author: Surbhi Sona ##
+
 ### This script takes per clade threshold output and creates gain loss threhold plots ###
 
 # Author: Surbhi Sona #

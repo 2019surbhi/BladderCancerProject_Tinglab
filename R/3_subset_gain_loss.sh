@@ -1,5 +1,10 @@
 #!/usr/bin/bash
 
+## bash wrapper for copykat subset script ##
+
+## Author: Surbhi Sona ##
+
+
 #SBATCH --mail-type=END
 #SBATCH --mail-user=sonas@ccf.org
 #SBATCH --job-name=gain

@@ -1,3 +1,5 @@
+## Author: Surbhi Sona ##
+
 library(Seurat)
 library(SCENIC)
 library(AUCell)

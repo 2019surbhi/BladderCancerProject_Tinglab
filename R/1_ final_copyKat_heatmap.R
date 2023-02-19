@@ -1,5 +1,13 @@
 #!/usr/bin/env Rscript
 
+
+### Script to print heatmap for merged copyKat outputs ###
+
+## Authors: Surbhi Sona & Tyler Alban ##
+
+
+# Use this to load specific version of copyKat library #
+
 mylib<-'/home/sonas/R/x86_64-pc-linux-gnu-library/4.1/'
 
 library(Seurat)

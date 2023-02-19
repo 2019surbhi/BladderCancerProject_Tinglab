@@ -1,6 +1,8 @@
 #!/usr/bin/env Rscript
 
-# Author: Surbhi Sona
+## Script tp subset copykat coordinates based on CVN cutoff ##
+
+## Author: Surbhi Sona ##
 
 ##### Load dependencies #####
 

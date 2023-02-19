@@ -1,5 +1,10 @@
 #!/usr/bin/bash
 
+## Bash wrapper script for printing copykat heatmap ##
+
+## Author: Surbhi Sona ##
+
+
 #SBATCH --mail-type=END
 #SBATCH --mail-user=sonas@ccf.org
 #SBATCH --job-name=final_heatmap

@@ -1,5 +1,9 @@
 #!/usr/bin/bash
 
+## bash wrapper to subset genomic coordinates from copyKat output based on given  CNV threshold ##
+
+## Author: Surbhi Sona ##
+
 #SBATCH --mail-type=END
 #SBATCH --mail-user=sonas@ccf.org
 #SBATCH --job-name=loss

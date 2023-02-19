@@ -1,6 +1,6 @@
 ### This script creates heatmap by calculating mean copykat CNV values per clade ###
 
-# Author: Surbhi Sona #
+## Author: Surbhi Sona ##
 
 library(Seurat)
 library(tidyverse)
