@@ -40,6 +40,13 @@ out<-'/home/sonas/beegfs/results/scRNA/bladder_copyKat_heatmap/'
 
 seurat_obj<-'/home/sonas/beegfs/data/v11.pass7p.uroepithelial.clean.v2.rds'
 
+# Procure sampleID using arrayindx 
+cat('Read sample annotation file \n')
+stable<-read.delim(sfile,header=TRUE,sep='\t')
+indx<-match(arrayidx,stable$sindex)
+sampleID<-stable$samples[indx]
+
+
 ## 1. Read Inputs ## 
 
 if(mode=='subsampled')
@@ -79,30 +86,30 @@ cat('Reading saved hclust obj: ', paste0(out,'hclust/',sname,'_Hclust.rds'), '\n
      hcc$labels<-gsub('\\.','-',hcc$labels)	
    }
 }else{
-cat('Reading seurat obj \n')
+cat('Reading barcode \n')
 
-so<-readRDS(seurat_obj)
-metadata<-as.data.frame(so@meta.data, check.names=FALSE)
-
+#so<-readRDS(seurat_obj)
+#metadata<-as.data.frame(so@meta.data, check.names=FALSE)
+bc<-read.table(bc_file,sep='\t')
+tumor.cells<-bc$V1
+ 
 # make dataframe of IDs for array indexing 
-nm<-data.frame(unique(so$orig.ident))
+#nm<-data.frame(unique(so$orig.ident))
 
-# Procure sampleID using arrayindx 
-sampleID<-nm[arrayidx,]
-rm(so)
+#sampleID<-nm[arrayidx,]
+#rm(so)
 
 # Read copyKat files
 cat('Reading CopyKat output files \n')
 
-filename<-paste0(outdir,sampleID,"_CNA.txt")
+filename<-paste0(outdir,sampleID,"_copykat_CNA_results.txt") # modify suffix to match output file name!
 dat_lst<-lapply(filename,read.delim,sep="\t")
 merged_dat<-do.call(cbind,dat_lst)
 colnames(merged_dat)<-gsub("\\.", "-", colnames(merged_dat))
 
-# Subset only tumor cells
-tumor.cells <- row.names(metadata)
+# Subset only tumor cells (or the subset of tumor cells specified by cell barcode read from file in previous steps)
+#tumor.cells <- row.names(metadata)
 tumor.mat <- merged_dat[, which(colnames(merged_dat) %in% tumor.cells)]
-
 rm(tumor.cells)
 
 # Add chr annotations
@@ -160,9 +167,7 @@ df$sample<-sID
 
 tab<-table(df$group,df$sample) %>% as.data.frame.matrix()
 
-#Read sample info table
-cat('Read sample annotation file \n')
-stable<-read.delim(sfile,header=TRUE,sep='\t')
+#Read sample info table (read in the beginning of the script as stable)
 
 # replace sample indx with sampleID
 sarray<-colnames(tab)
