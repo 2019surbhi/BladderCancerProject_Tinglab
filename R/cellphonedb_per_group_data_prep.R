@@ -149,7 +149,8 @@ write.table(cell_tab,paste0(out,'uro_imm_cell_count_Naive.txt'), sep='\t',row.na
 ## a) Naive_w ##
 prefix<-'Naive_w'
 
-sub<-metadata_cutoff_based_subset(obj=sub_nw,meta='cell.names',cutoff=10)
+#sub<-metadata_cutoff_based_subset(obj=sub_nw,meta='cell.names',cutoff=10)
+sub<-metadata_cutoff_based_subset(obj=sub_nw,meta='cell.names',cutoff=100)
 
 # Save metadata #
 save_metadata(sub,meta='cell.names',fname=paste0(out,prefix,'_metadata.txt'))
@@ -208,7 +209,8 @@ write(x = rownames(sub@assays$SCT@data), file = paste0(out,prefix,"/features.tsv
 
 prefix<-'Naive'
 
-sub<-metadata_cutoff_based_subset(obj=sub_n,meta='cell.names',cutoff=10) #  cells remain
+#sub<-metadata_cutoff_based_subset(obj=sub_n,meta='cell.names',cutoff=10) #  cells remain
+sub<-metadata_cutoff_based_subset(obj=sub_n,meta='cell.names',cutoff=100)
 
 ### Save metadata ###
 save_metadata(sub,meta='cell.names',fname=paste0(out,prefix,'/',prefix,'_metadata.txt'))
