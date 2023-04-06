@@ -151,7 +151,8 @@ cname<-colnames(mean_mat)
 
 for(i in 1:length(clades))
 {
-  sub_mat<-tumor.mat[,clade_bc[[i]]]
+  select<-match(clade_bc[[i]],colnames(tumor.mat))
+  sub_mat<-tumor.mat[,select]
   clade_mean<-apply(sub_mat,1,mean)
   mean_mat<-cbind(mean_mat,clade_mean)
 }
