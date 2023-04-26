@@ -1,289 +1,145 @@
-library(data.table)
 library(dplyr)
-library(ComplexHeatmap)
-library(RColorBrewer)
-library(colorRamp2)
-
-##### INPUTS ##### 
-
-dir<-'/home/sonas/cellphonedb/cpdb_outputs100/'
-prefix_n<-'Naive'
-prefix_r<-'Recurrent'
-file<-'count_network.txt'
-ifile<-'significant_means.txt'       
+library(data.table)
+library(tidyverse)
 
 
 
-###### FUNCTIONS #####
+## Function #####
 
-### Function to extract significant interactions ###
-
-# dir: input dir 
-# prefix: prefix that defines subdirectory
-# ifile: interaction file name
-# cell_pairs: vector of cell pairs to subset for (name and format must match those in the significant mean table)
-
-
-get_sig_int2<-function(dir,prefix,ifile,cell_pairs)
+select_cpdb_rows_cols<-function(sig_mean,cells,fprefix,mean_cutoff=1.5)
 {
-  itab<-fread(paste0(dir,prefix,'/',ifile))
-  reg_cols<-colnames(itab)[1:12]
-  col<-colnames(itab)[-c(1:12)]
-  col<-gsub('|','_',col,fixed = TRUE)
-  colnames(itab)<-c(reg_cols,col)
+  sig<-fread(sig_mean) %>% as.data.frame()
   
-  sub<-list()
-  
-  for(i in 1:length(cell_pairs))
+  for(i in 1:length(cells))
   {
-    col<-match(cell_pairs[i],colnames(itab))
-    if(is.na(col)==TRUE)
-    {
-      sub_tab<-as.data.frame(cbind('none',0))
-      colnames(sub_tab)<-c('interacting_pair',cell_pairs[i])
-    }else{
-      selected_rows<-which(is.na(itab[,..col])==FALSE)
-      selected_cols<-c(grep('interacting_pair',colnames(itab)),col)
-      sub_tab<-itab[selected_rows,..selected_cols]
-      sub_tab<-sub_tab[order(sub_tab[,2],decreasing = TRUE),]
-    }  
-    sub[[i]]<-sub_tab
+    s<-grep(cells[i],colnames(sig))
+    sig_sub<-sig[,s]
+    
+    select_cols<-colnames(sig_sub)
+        
+    # Create row max
+    sig_sub<-replace(sig_sub, is.na(sig_sub), 0)
+    sig_sub$max<-apply(sig_sub,1,max)
+    
+    sig_sub<-cbind(sig[,1:12],sig_sub)
+    rows<-which(sig_sub$max>=mean_cutoff)
+    
+    select_rows<-sig_sub$interacting_pair[rows]
   }
   
-  names(sub)<-new_pairs
-  
-  return(sub)
+  return(list(select_rows,select_cols))
 }
 
-### Function to merge significant interactions ###
 
-#sub: list of significant tables (1 per ipair) 
-#all_int: non-redundant list of ligand-receptor interactions
-
-merge_sig_int<-function(sub,all_int)
+select_cpdb_common_rows_cols<-function(sig_mean_r,sig_mean_n,cells,diff_cutoff=1,sub=NULL)
 {
+  sign<-fread(sig_mean_n) %>% as.data.frame()
+  sigr<-fread(sig_mean_r) %>% as.data.frame()
   
-  final_int<-list()
-  
-  for(i in 1:length(sub))
+  for(i in 1:length(cells))
   {
-    int<-sub[[i]][(match(all_int,(sub[[i]]$interacting_pair))),2]
-    if(length(int)==length(is.na(int)==TRUE))
+    sn<-grep(cells[i],colnames(sign))
+    sign_sub<-sign[,sn]
+    
+    sr<-grep(cells[i],colnames(sigr))
+    sigr_sub<-sigr[,sr]
+    
+    # subset common cols
+    
+    comm<-intersect(colnames(sign_sub),colnames(sigr_sub))
+    comm<-sort(comm)
+    from<-comm[grep(paste0(cells[i],'|'),comm,fixed = TRUE)]
+    to<-comm[grep(paste0('|',cells[i]),comm,fixed = TRUE)]
+    
+    if(is.null(sub)==FALSE)
     {
-      int<-rep(0,length(int)) %>% as.data.frame()
-      colnames(int)<-names(sub[i])
+      f<-strsplit(from,split='\\|') %>% sapply(.,'[[',2)
+      from<-from[which(f %in% sub)]
       
-    }else{
-      int<-int %>% replace(is.na(.),0)
-      int<-round(int,digits = 2)
+      t<-strsplit(to,split='\\|') %>% sapply(.,'[[',1)
+      to<-to[which(t %in% sub)]
+      
     }
     
-    final_int[[i]]<-int
-  }
-  
-  #names(final_int)<-names(sub)
-  final_int<-do.call(cbind,final_int)
-  
-  return(final_int)
-}
-
-### Function to filter rows ###
-
-# tab: table of significant interactions
-# cutoff: combined mean value cutoff for filtering
-
-filter_rows<-function(tab,cutoff=0.5)
-{
-  max<-apply(tab,1,max)
-  rem<-which(max<=cutoff)
-  tab2<-tab[-rem,]
-  return(tab2)
-  
-}
-
-filter_rows_rev<-function(tab,cutoff=0.5)
-{
-  max<-apply(tab,1,max)
-  rem<-which(max>=cutoff)
-  tab2<-tab[-rem,]
-  return(tab2)
-  
-}
-
-
-### Function to select cell pairs ###
-
-select_cell_pairs<-function(cell_group)
-{
-
-# Rename cell pairs
-select_pairs<-vector()
-
-for(i in 1:length(cell_group))
-{
-  cells<-paste0(cell_group[i],'_',cell_group)
-  select_pairs<-c(select_pairs,cells)
-}
-
-return(select_pairs)
-
-}
-
-### Function to create barplots ###
-
-# cell_pairs: vector of cell pairs in correct format: cell1_cell2 instead of cell1|cell2
-# n: number of top and bottom interactions to subset for (e.g. n=20 for top20 and bottom 20 interactions)
-# out: output dir path
-# fprefix: file name prefix (e.g. uro-uro)
-# w: plot width in inches (default is 8)
-# h: plot height in inches (default is 11)
-
-count_diff_barplot<-function(cell_pairs,n='all',out,fprefix,w=8,h=11)
-{
-    # Get significant means for selected cell pairs in Naive and Recurrent groups
-  s
-  sub_n<-get_sig_int2(dir,prefix_n,ifile,cell_pairs)
-  sub_r<-get_sig_int2(dir,prefix_r,ifile,cell_pairs)
-  
-  # Get non-redundant union list of ligands and receptors
-  
-  all_int_n<-sapply(sub_n,'[[',1) %>% unlist() %>% unique()
-  all_int_r<-sapply(sub_r,'[[',1) %>% unlist() %>% unique()
-  all_int<-c(all_int_n,all_int_r) %>% unique()
-  
-  # Get merged significant mean table
-  naive<-merge_sig_int(sub_n,all_int) %>% as.data.frame()
-  rownames(naive)<-all_int
-  rec<-merge_sig_int(sub_r,all_int) %>% as.data.frame()
-  rownames(rec)<-all_int
-  
- 
-  # Get interaction count
-  ncount<-rowSums(naive!=0)
-  rcount<-rowSums(rec!=0)
-  
-  #sanity check
-  identical(names(ncount),names(rcount))
-  
-  # Get count difference
-  diff<-rcount-ncount
-  names(diff)<-names(ncount)
-  
-  # Sort
-  diff<-sort(diff,decreasing = TRUE)
-  
-  # extract top and bottom diff (optional)
-  if(n!='all')
-  {
-    t1<-diff[1:n]
-    t2<-diff[(length(diff)-n):(length(diff))]
-    diff<-c(t1,t2)
-  }
-  
-  diff_tab<-data.frame('LR'=names(diff),'count_diff'=diff)
-  diff_tab$value<-ifelse(diff_tab$count_diff>0,'R-high','N-high')
-  
-  # Remove diff count that is 0
-  rem<-which(diff_tab$count_diff==0)
-  if(length(rem)!=0)
-  {
-  diff_tab<-diff_tab[-rem,]
-  }
-  # print barplot
-  
-  b<-ggplot(diff_tab,aes_string(x='reorder(LR,-count_diff)',
-                                y='count_diff',
-                                fill='value'),
-            position='stat',
-            colour='black',width = 0.9) +
-    geom_col() +
-    scale_fill_manual(
-      values = c("R-high" = "red",
-                 "N-high" = "blue")) +
-    xlab('Ligand-Receptor') +
-    ylab('Count diff (R-N)') +
-    theme(panel.grid.major = element_blank(),
-          panel.grid.minor = element_blank(),
-          panel.background = element_blank(),
-          axis.line = element_line('black'),
-          axis.text.x = element_text(angle=90)) +
-    coord_flip()
-  
-  ggsave(paste0(out,fprefix,'_R-N_count_diff_barplot.png'),width = w,height = h,units = "in",dpi = 600,limitsize = FALSE,b)
-  
+    comm2<-c(from,to)
+    
+    sign_sub<-sign_sub[,comm2]
+    sigr_sub<-sigr_sub[,comm2]
+    
+      
+    # Create row max
+    sign_sub<-replace(sign_sub, is.na(sign_sub), 0)
+    sigr_sub<-replace(sigr_sub, is.na(sigr_sub), 0)
+    
+    # Max diff
+    sign_sub2<-cbind(sign[,1:12],sign_sub)
+    sigr_sub2<-cbind(sigr[,1:12],sigr_sub)
+    
+    comm_int<-intersect(sign$interacting_pair,sigr$interacting_pair)
+    n<-match(comm_int,sign_sub2$interacting_pair)
+    r<-match(comm_int,sigr_sub2$interacting_pair)
+    
+    sig_sub<-sign_sub2[n,13:ncol(sign_sub2)]-sigr_sub2[r,13:ncol(sigr_sub2)]
+    sig_sub$max_diff<-apply(sig_sub,1,max)
+    sig_sub$min_diff<-apply(sig_sub,1,min)
+    sig_sub<-cbind(comm_int,sig_sub)
+    
+    rowsn<-which(sig_sub$max>=diff_cutoff)
+    rowsr<-which(abs(sig_sub$min)>=diff_cutoff)
+    rows<-c(rowsn,rowsr)
+    
+    select_rows<-sig_sub$comm_int[rows]
+    }
+  return(list(select_rows,comm2))
 }
 
 
-##### Read INPUTS ##### 
+### Output ###
+out<-'/home/sonas/cellphonedb/cpdb_current/dotplots/'
+# cells<-c('MMDSC','Type 2 conventional dendritic',
+#                 'Treg','Macrophages','CD4 T Central Memory 2',
+#                 'Proliferating lymphocytes')
 
-tn<-fread(paste0(dir,prefix_n,'/',file),header=TRUE,sep='\t')
-pn<-paste(tn$SOURCE,tn$TARGET,sep='_')
-tn$pairs<-pn
+cells<-c('CD8 T effector')
 
-tr<-fread(paste0(dir,prefix_r,'/',file),header=TRUE,sep='\t')
-pr<-paste(tr$SOURCE,tr$TARGET,sep='_')
-tr$pairs<-pr
+naive<-fread('/home/sonas/cellphonedb/cpdb_outputs100/Naive/means.txt')
+naive<-naive[,-c(1:11)]
+cols_n<-colnames(naive)
+all_cells_n<-cols_n %>% strsplit(cols_n,split='\\|') %>% sapply(.,'[[',1) %>% unique()
 
-pairs<-c(pn,pr) %>% unique()
+uro_n<-all_cells_n[c(10:14,22,25)]
 
-
-##### Now read interactions #####
-
-# select cell pair groups for uro-uro, imm-imm and imm-uro interactions
-
-all_cells<-c(tn$SOURCE,tn$TARGET,tr$SOURCE,tr$TARGET) %>% unique()
-
-uro<-all_cells[c(1:6,25)] %>% sort()
-imm<-all_cells[c(7:23,26:28)] %>% sort()
+# Same set of cells so no need to repeat it for recurrent
 
 
-######## Print barplots ##########
 
-out<-'/home/sonas/cellphonedb/cpdb_outputs100/plots/'
-
-# all pairs #
-
-all_pairs<-select_cell_pairs(c(imm,uro))
-
-fprefix<-'all_imm_uro_top20'
-count_diff_barplot(cell_pairs=all_pairs,n=20,out,fprefix,w=8,h=11)
-
-fprefix<-'all_imm_uro_all_sig'
-count_diff_barplot(cell_pairs =all_pairs,n='all',out,fprefix,w=8,h=55)
-
-# uro-uro interactions #
-
-uro_pairs<-select_cell_pairs(uro)
-
-fprefix<-'uro-uro_top20'
-count_diff_barplot(cell_pairs=uro_pairs,n=20,out,fprefix,w=8,h=11)
-
-fprefix<-'uro-uro_all_sig'
-count_diff_barplot(cell_pairs =uro_pairs,n='all',out,fprefix,w=8,h=22)
-
-# imm-imm interactions #
-
-imm_pairs<-select_cell_pairs(imm)
-
-fprefix<-'imm-imm_top20'
-count_diff_barplot(cell_pairs=imm_pairs,n=20,out,fprefix,w=8,h=11)
-
-fprefix<-'imm-imm_all_sig'
-count_diff_barplot(cell_pairs=imm_pairs,n = 'all',out,fprefix,w=8,h=41)
+## Naive ##
+sig_mean_n<-'/home/sonas/cellphonedb/cpdb_outputs100/Naive/significant_means.txt'
+fprefix_n<-'naive'
+# 
+#select_cpdb_rows_cols(sig_mean=sig_mean_n,cells,fprefix=fprefix_n,mean_cutoff=1.5,out)
+# 
+# ## Recurrent ##
+# 
+sig_mean_r<-'/home/sonas/cellphonedb/cpdb_outputs100/Recurrent/significant_means.txt'
+fprefix_r<-'recurrent'
+# 
+# select_cpdb_rows_cols(sig_mean=sig_mean_r,cells,fprefix=fprefix_r,mean_cutoff=1.5,out)
 
 
-# imm-uro interactions #
 
-imm_uro_pairs<-vector()
+## Common cols and rows
 
-for(i in 1:length(imm))
-  {
-    cells<-paste0(imm[i],'_',uro)
-    imm_uro_pairs<-c(imm_uro_pairs,cells)
-  }
+out<-'/home/sonas/cellphonedb/cpdb_current/dotplots/'
 
-fprefix<-'imm-uro_top20'
-count_diff_barplot(cell_pairs=imm_uro_pairs,n=20,out,fprefix,w=8,h=11)
+# Common rows
+comm_rc<-select_cpdb_common_rows_cols(sig_mean_r,sig_mean_n,cells,diff_cutoff=0.5,sub = uro_n)
 
-fprefix<-'imm-uro_all_sig'
-count_diff_barplot(cell_pairs =imm_uro_pairs,n='all',out,fprefix,w=8,h=55)
+select_comm_rows<-comm_rc[[1]]
+select_comm_cols<-comm_rc[[2]]
+
+write.table(select_comm_rows,paste0(out,'common_',cells2,'_rows.txt'),
+            row.names = FALSE,col.names = FALSE,quote=FALSE)
+
+write.table(select_comm_cols,paste0(out,'common_',cells2,'_cols.txt'),
+            row.names = FALSE,col.names = FALSE,quote=FALSE)
