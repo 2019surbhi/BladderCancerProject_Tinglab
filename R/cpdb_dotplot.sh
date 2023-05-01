@@ -8,6 +8,17 @@ cell_prefix='CD4_T_Central_Memory2'
 cols=CD4_T_Central_Memory2_imm_cols.txt
 rows=imm-imm_all_sig_int_rows.txt
 
+### intermediate 4 - imm ###
+cell_prefix='intermediate4-imm'
+cols=intermediate4_imm_cols.txt
+rows=Intermediate4-imm_top20_int_rows.txt
+
+
+### intermediate 4 - uro ###
+cell_prefix='intermediate4-uro'
+cols=intermediate4_uro_cols.txt
+rows=Intermediate4-uro_top20_int_rows.txt
+
 
 # Naive
 pre='naive'
@@ -18,8 +29,6 @@ cellphonedb plot dot_plot --means-path ${dir}/Naive/${mean} --pvalues-path ${dir
 # Recurrent
 pre='recurrent'
 fname=${pre}_${cell_prefix}_dotplot.pdf
-
-
 
 cellphonedb plot dot_plot --means-path ${dir}/Recurrent/${mean} --pvalues-path ${dir}/Recurrent/${pval} --output-path ${out} --output-name ${fname} --rows ${input}${rows} --columns ${input}${cols} --verbose
 
